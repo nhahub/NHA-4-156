@@ -1,0 +1,6 @@
+Masa2o :)
+fl part bta3 lama 3moman 7assa eshta for now, bs fy improvement potential
+w hwa enno bdl ma el chunker sha8al b sentence splitter bs, fy 7aga tania esmha el code splitter
+bs hia sha8ala 3la lib esmaha tree-sitter which takes str w aslan el code splitter by pass bytes, fa I 
+tried to monkey patch it w nzlt version 2adema bmn el tree sitter bs still it didn't work I donoo whyyyyy
+fa 3yza a3dlha
