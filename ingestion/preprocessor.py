@@ -3,13 +3,18 @@ import subprocess
 from pathlib import Path
 import stat
 
-SKIP_DIRS = {"node_modules", ".git", "__pycache__", ".venv", "venv", "dist", "build"}
+SKIP_DIRS = {"node_modules", ".git", "__pycache__", ".venv", "venv", "dist", "build", ".vscode", ".idea", "target", "out", "bin", "obj"}
 SUPPORTED_EXTENSIONS = {
+    # code
     ".py", ".js", ".jsx", ".ts", ".tsx",
-    ".md", ".txt", ".json", ".yml", ".yaml",
     ".java", ".cpp", ".c", ".h", ".cs",
     ".go", ".rs", ".rb", ".php", ".swift",
-    ".html", ".css", ".xml", ".sh",
+    ".kt", ".kts", ".scala", ".lua", ".sql",
+    ".vue", ".graphql", ".gql", ".r",
+    # text / config
+    ".md", ".txt", ".json", ".yml", ".yaml",
+    ".toml", ".rst", ".env",
+    ".html", ".css", ".xml", ".sh", ".bash", ".zsh",
 }
 
 class RepositoryPreprocessor:

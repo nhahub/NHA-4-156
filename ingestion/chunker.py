@@ -1,19 +1,66 @@
+from collections import defaultdict
 from typing import List
 from pathlib import Path
-from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core.node_parser import SentenceSplitter, CodeSplitter
 from llama_index.core.schema import BaseNode, Document
+
+CODE_EXTENSIONS = {
+    ".py", ".js", ".jsx", ".ts", ".tsx",
+    ".java", ".cpp", ".c", ".h", ".cs",
+    ".go", ".rs", ".rb", ".php", ".swift",
+    ".kt", ".kts", ".scala", ".lua", ".sql",
+    ".vue", ".graphql", ".gql", ".r",
+}
+
+TEXT_EXTENSIONS = {
+    ".md", ".txt", ".json", ".yml", ".yaml",
+    ".toml", ".rst", ".env", ".html", ".css",
+    ".xml", ".sh", ".bash", ".zsh",
+}
+
+LANGUAGE_MAP = {
+    ".py": "python",
+    ".js": "javascript", ".jsx": "javascript",
+    ".ts": "typescript", ".tsx": "typescript",
+    ".java": "java",
+    ".cpp": "cpp", ".c": "c", ".h": "c",
+    ".cs": "c_sharp",
+    ".go": "go",
+    ".rs": "rust",
+    ".rb": "ruby",
+    ".php": "php",
+    ".swift": "swift",
+    ".kt": "kotlin", ".kts": "kotlin",
+    ".scala": "scala",
+    ".lua": "lua",
+    ".sql": "sql",
+    ".vue": "vue",
+    ".graphql": "graphql", ".gql": "graphql",
+    ".r": "r",
+}
+FILENAME_MAP = {
+    "dockerfile": "bash",
+    "makefile": "bash",
+    "procfile": "bash",
+}
+
 
 class RepositoryChunker:
     def __init__(self, chunk_size: int = 512, chunk_overlap: int = 50):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
-        self.splitter = SentenceSplitter(
+        self.text_splitter = SentenceSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
         )
 
     def chunk_documents(self, documents: List[Document]) -> List[BaseNode]:
-        nodes = self.splitter.get_nodes_from_documents(documents)
+        nodes = [] 
+
+        for doc in documents:
+            splitter = self._get_splitter_for_doc(doc)
+            nodes += splitter.get_nodes_from_documents([doc])
+        
         return nodes
 
     def chunk_document(self, document: Document) -> List[BaseNode]:
@@ -29,6 +76,39 @@ class RepositoryChunker:
             "chunk_size_config": self.chunk_size,
             "chunk_overlap_config": self.chunk_overlap,
         }
+
+    def _get_splitter_for_doc(self, doc: Document):
+        file_path = doc.metadata.get("file_path", "")
+        path = Path(file_path)
+        
+        bare_name = path.name.lower()
+        if bare_name in FILENAME_MAP:
+            lang = FILENAME_MAP[bare_name]
+            try:
+                return CodeSplitter(
+                    language=lang,
+                    chunk_lines=40,
+                    chunk_lines_overlap=5,
+                    max_chars=1500,
+                )
+            except Exception as e:
+                return self.text_splitter
+
+        ext = path.suffix.lower()
+        
+        if ext in CODE_EXTENSIONS:
+            lang = LANGUAGE_MAP.get(ext, "python")
+            try:
+                return CodeSplitter(
+                    language=lang,
+                    chunk_lines=40,
+                    chunk_lines_overlap=5,
+                    max_chars=1500,
+                )
+            except Exception as e:
+                return self.text_splitter
+
+        return self.text_splitter
     
 
 # el code elly ana 3awzah:
@@ -38,22 +118,7 @@ class RepositoryChunker:
 # from llama_index.core.node_parser import CodeSplitter, SentenceSplitter
 # from llama_index.core.schema import BaseNode, Document
 
-# CODE_EXTENSIONS = {
-#     ".py", ".js", ".jsx", ".ts", ".tsx",
-#     ".java", ".cpp", ".c", ".h", ".cs",
-#     ".go", ".rs", ".rb", ".php", ".swift",
-#     ".html", ".css", ".xml", ".sh",
-# }
 
-# TEXT_EXTENSIONS = {".md", ".txt", ".json", ".yml", ".yaml"}
-
-# LANGUAGE_MAP = {
-#     ".py": "python", ".js": "javascript", ".jsx": "javascript",
-#     ".ts": "typescript", ".tsx": "typescript", ".java": "java",
-#     ".cpp": "cpp", ".c": "c", ".h": "c", ".cs": "c_sharp",
-#     ".go": "go", ".rs": "rust", ".rb": "ruby",
-#     ".html": "html", ".css": "css", ".sh": "bash",
-# }
 
 
 # class RepositoryChunker:
