@@ -6,6 +6,12 @@ openrouter
 openai
 
 llama-index-core
+llama-index-embeddings-huggingface
+llama-index-vector-stores-chroma
+
+einops 
+
+chromadb
 
 tree-sitter==0.20.4
 tree-sitter-python
@@ -17,5 +23,3 @@ tree-sitter-c-sharp
 tree-sitter-go
 tree-sitter-rust
 tree-sitter-ruby
-
-chromadb
