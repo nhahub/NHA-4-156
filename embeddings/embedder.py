@@ -7,8 +7,8 @@ class RepoEmbedder:
         self.embedder = HuggingFaceEmbedding(
             model_name=model_name,
             trust_remote_code=True,
-            text_instruction="search document: ",
-            query_instruction="search query: ",
+            text_instruction="search_document: ",
+            query_instruction="search_query: ",
             device = "cuda" if torch.cuda.is_available() else "cpu"
             )
 
