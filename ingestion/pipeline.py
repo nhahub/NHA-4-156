@@ -2,7 +2,8 @@ from embeddings.embedder import RepoEmbedder
 from ingestion.preprocessor import RepositoryPreprocessor
 from ingestion.loader import RepositoryLoader
 from ingestion.chunker import RepositoryChunker
-from llama_index.core import Settings
+from llama_index.core import Settings, VectorStoreIndex
+from vectorstore.chroma_store import RepoVectorStore
 
 
 class IngestionPipeline:
@@ -19,7 +20,18 @@ class IngestionPipeline:
         Settings.embed_model = RepoEmbedder().get_embed_model()
 
     def run(self, repo_url_or_path: str):
+        # copy or clone the repo and filter out unnecessary files
         self.preprocessor.prepare(repo_url_or_path)
+        # load the remaining files as llamaindex documents
         documents = self.loader.load_files()
+        # chunk the documents into nodes, handles code and text files accordingly
         nodes = self.chunker.chunk_documents(documents)
-        return nodes
+        # create a chromadb collection for this repo and store the nodes as vectors
+        vector_store = RepoVectorStore(collection_name=self.loader.data_folder.name)
+        index = VectorStoreIndex(
+            nodes=nodes,
+            storage_context=vector_store.get_storage_context(),
+            show_progress=True,
+        )
+
+        return index
