@@ -14,6 +14,10 @@ for the endpoints we might have:
 5) /repos (GET) :
 6) /repos/{id} (DELETE) : 
 
+IMPORTANT: 
+fix the fact that a repository gets cloned and re-indexed again even if it's already cached with no changes between local and remote
+repo id (like name of the folder it's saved in) shouldn't be just the repo name, cause two different authors/sources could have the same repo name, instead it should be author+name
+
 other: 
 
 Since the app is called Repo-Illustrator and you have a visualizer.py file, you definitely need endpoints that output diagrams (like Mermaid.js, PlantUML, or React flow schemas) representing the repository.
