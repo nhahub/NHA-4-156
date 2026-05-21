@@ -4,3 +4,29 @@ w hwa enno bdl ma el chunker sha8al b sentence splitter bs, fy 7aga tania esmha 
 bs hia sha8ala 3la lib esmaha tree-sitter which takes str w aslan el code splitter by pass bytes, fa I 
 tried to monkey patch it w nzlt version 2adema bmn el tree sitter bs still it didn't work I donoo whyyyyy
 fa 3yza a3dlha
+
+sup
+for the endpoints we might have: 
+1) /repos/index (POST) : run a repo through the pipeline
+2) /repos/{id}/status (GET)
+3) /repos/{id}/chat (POST)
+4) /repos/{id}/insight (POST)
+5) /repos (GET) :
+6) /repos/{id} (DELETE) : 
+
+other: 
+
+Since the app is called Repo-Illustrator and you have a visualizer.py file, you definitely need endpoints that output diagrams (like Mermaid.js, PlantUML, or React flow schemas) representing the repository.
+
+7) /repos/{id}/architecture (GET): Triggers the visualizer to map out folder structures, component dependencies, or database schemas.
+8) /visualize/{id}/flow (POST): Pass a specific function name or API route in the body, and the LLM maps out the call stack/logic flow visually.
+2. Chat / Session Management
+For a good user experience, chat shouldn't just be stateless. If you are building a UI, you need session IDs to track conversation history.
+
+9) /repos/{id}/chat/{session_id} (GET): Retrieve history for a specific conversation session so the frontend can populate the chat window.
+10) /repos/{id}/chat/{session_id} (DELETE): Clear a chat history.
+3. Content Generation
+Beyond answering questions (RAG/Chat), a repo tool is excellent at generating files.
+
+11) /repos/{id}/generate/readme (POST): Synthesizes the entire codebase to auto-generate a comprehensive README.md.
+12) /repos/{id}/generate/tests (POST): Takes a selected filepath in the body and generates unit tests for it.
