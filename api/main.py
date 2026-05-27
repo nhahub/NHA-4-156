@@ -2,23 +2,28 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 import os
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
-from ingestion import pipeline
+from llama_index.core import Settings
+from embeddings.embedder import RepoEmbedder
 from api.routes import chat, ingestion
+from api.registry import load_registry
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     load_dotenv()
 
-    app.state.pipeline = pipeline.IngestionPipeline()
+    # Configure LlamaIndex settings globally
+    Settings.chunk_size = 512
+    Settings.chunk_overlap = 50
+    Settings.embed_model = RepoEmbedder().get_embed_model()
 
-    app.state.repo_dict = {}
+    app.state.repo_dict = load_registry()
+    app.state.index_cache = {}
     app.state.sessions = {}
-    # any extra llm api initialization can go here
     
     yield
 
-    del app.state.pipeline
     del app.state.repo_dict
+    del app.state.index_cache
     del app.state.sessions
 
 app = FastAPI(lifespan=lifespan, title="Repo Illustrator API")
