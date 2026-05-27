@@ -36,9 +36,9 @@ async def ingest_repository(request: Request, payload: IndexRequest, background_
 
     background_tasks.add_task(process_repo, repo_id, repo_url, request.app.state)
     
-    return {"repo_id": repo_id, "message": "Ingestion started. Check status with GET /repos/status/{repo_id}"}
+    return {"repo_id": repo_id, "message": "Ingestion started. Check status with GET /{repo_id}/status"}
 
-@router.get("/repos/{repo_id}/status")
+@router.get("/{repo_id}/status")
 async def get_repo_status(repo_id: str, request: Request):
     repo_info = request.app.state.repo_dict.get(repo_id)
     if not repo_info:
@@ -46,6 +46,6 @@ async def get_repo_status(repo_id: str, request: Request):
     
     return {
         "repo_id": repo_id,
-        "url": repo_info["url"],
-        "status": repo_info["status"]
+        "url": repo_info.get("url", "unknown"),
+        "status": repo_info.get("status", "ready (loaded from disk)")
     }
