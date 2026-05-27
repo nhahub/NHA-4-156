@@ -1,42 +1,54 @@
 from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
 from pydantic import BaseModel, HttpUrl
-import uuid
+import re
+from urllib.parse import urlparse
+from ingestion import pipeline
+from api.registry import save_registry
 
 router = APIRouter()
 
 class IndexRequest(BaseModel):
     repo_url: HttpUrl
 
+def generate_repo_id(url: str) -> str:
+    path = urlparse(url).path.strip('/')
+    parts = path.split('/')
+    if len(parts) >= 2:
+        return f"{parts[0]}__{parts[1]}".lower().replace('-', '_')
+    return re.sub(r'[^a-zA-Z0-9]', '_', path).lower()
+
 def process_repo(repo_id: str, repo_url: str, state):
-    pipeline = state.pipeline
+    ingest_pipeline = pipeline.IngestionPipeline()
     try:
-        index = pipeline.run(repo_url)
+        index = ingest_pipeline.run(repo_url, repo_id)
         state.repo_dict[repo_id] = {
             "url": repo_url,
-            "index": index,
+            "collection_name": repo_id,
             "status": "ready"
         }
+        state.index_cache[repo_id] = index
     except Exception as e:
         state.repo_dict[repo_id] = {
             "url": repo_url,
-            "index": None,
             "status": f"error: {str(e)}"
         }
+    
+    save_registry(state.repo_dict)
 
 @router.post("/ingest")
 async def ingest_repository(request: Request, payload: IndexRequest, background_tasks: BackgroundTasks):
-    repo_id = str(uuid.uuid4()) #TODO: this should be repo author + name or similar
     repo_url = str(payload.repo_url)
+    repo_id = generate_repo_id(repo_url)
     
     request.app.state.repo_dict[repo_id] = {
         "url": repo_url,
-        "index": None,
         "status": "processing"
     }
+    save_registry(request.app.state.repo_dict)
 
     background_tasks.add_task(process_repo, repo_id, repo_url, request.app.state)
     
-    return {"repo_id": repo_id, "message": "Ingestion started. Check status with GET /{repo_id}/status"}
+    return {"repo_id": repo_id, "message": f"Ingestion started. Check status with GET /{repo_id}/status"}
 
 @router.get("/{repo_id}/status")
 async def get_repo_status(repo_id: str, request: Request):

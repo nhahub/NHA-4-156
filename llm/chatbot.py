@@ -29,5 +29,5 @@ class Chatbot:
         )
 
     def get_chat_engine(self, history : list = None):
-        memory = ChatMemoryBuffer.from_defaults(token_limit=8192, chat_history=history or [])
+        memory = ChatMemoryBuffer.from_defaults(token_limit=4000, chat_history=history or [])
         return self.index.as_chat_engine(chat_mode="condense_plus_context", memory=memory, llm=self.llm, system_prompt=self.system_prompt, verbose=True)

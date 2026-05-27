@@ -21,13 +21,20 @@ class ChatResponse(BaseModel):
 @router.post("/chat/{repo_id}", response_model=ChatResponse)
 async def chat(repo_id: str, request: Request, payload: ChatRequest):
     app_state = request.app.state
-    repo_info = app_state.repo_dict.get(repo_id)
-    if repo_info and repo_info.get("index"):
-        index = repo_info["index"]
+    
+    if hasattr(app_state, 'index_cache') and repo_id in app_state.index_cache:
+        index = app_state.index_cache[repo_id]
     else:
+        repo_info = app_state.repo_dict.get(repo_id)
+        if not repo_info:
+            raise HTTPException(status_code=404, detail="Repo metadata not found. Ingest the repo first.")
+            
         try:
-            index = load_repo_index(repo_id)
-            app_state.repo_dict[repo_id] = {"index": index}
+            collection_name = repo_info.get("collection_name", repo_id)
+            index = load_repo_index(collection_name)
+            if not hasattr(app_state, 'index_cache'):
+                app_state.index_cache = {}
+            app_state.index_cache[repo_id] = index
         except Exception as e:
             raise HTTPException(status_code=404, detail=f"Repo index not found: {str(e)}. Ingest the repo first.")
         
@@ -40,7 +47,7 @@ async def chat(repo_id: str, request: Request, payload: ChatRequest):
         chatbot = Chatbot(index=index, provider=payload.provider, model_name=payload.model_name)
         chat_engine = chatbot.get_chat_engine(history=history)
         response = chat_engine.chat(payload.message)
-        app_state.sessions[session_id] = chat_engine.memory.get_all()
+        app_state.sessions[session_id] = chat_engine.chat_history
 
         return ChatResponse(response=str(response), session_id=session_id)
 
