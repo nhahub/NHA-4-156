@@ -7,8 +7,9 @@ from vectorstore.chroma_store import RepoVectorStore
 from pathlib import Path
 
 class IngestionPipeline:
-    def __init__(self, data_folder: str = "data/processed"):
-        self._configure_settings()
+    def __init__(self, data_folder: str = "data/processed", init_global_settings: bool = False):
+        if init_global_settings:
+            self._configure_settings()
 
         self.preprocessor = RepositoryPreprocessor(output_folder=data_folder)
         self.loader = RepositoryLoader(data_folder=data_folder)

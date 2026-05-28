@@ -34,3 +34,7 @@ Beyond answering questions (RAG/Chat), a repo tool is excellent at generating fi
 
 11) /repos/{id}/generate/readme (POST): Synthesizes the entire codebase to auto-generate a comprehensive README.md.
 12) /repos/{id}/generate/tests (POST): Takes a selected filepath in the body and generates unit tests for it.
+
+
+big problem: when the api receives a new repo and is generating embeddings, it completely freezes ands tops responding until that is over. The solution is for the ml task to be decoupled from the api process (multiple solutions available but khleeha kda for now)
+premature optimization is the root of all evil
