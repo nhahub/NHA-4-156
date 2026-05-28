@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from llama_index.core import Settings
 from embeddings.embedder import RepoEmbedder
 from api.routes import chat, ingestion
-from api.registry import load_registry
+from api.database import init_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -16,15 +16,13 @@ async def lifespan(app: FastAPI):
     Settings.chunk_overlap = 50
     Settings.embed_model = RepoEmbedder().get_embed_model()
 
-    app.state.repo_dict = load_registry()
+    init_db()
+
     app.state.index_cache = {}
-    app.state.sessions = {}
     
     yield
 
-    del app.state.repo_dict
     del app.state.index_cache
-    del app.state.sessions
 
 app = FastAPI(lifespan=lifespan, title="Repo Illustrator API")
 app.include_router(ingestion.router, prefix="/repos", tags=["Ingestion"])
