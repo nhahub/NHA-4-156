@@ -34,7 +34,7 @@ class IngestionPipeline:
         index = VectorStoreIndex(
             nodes=nodes,
             storage_context=vector_store.get_storage_context(),
-            show_progress=True,
+            show_progress=False,
         )
 
         return index
