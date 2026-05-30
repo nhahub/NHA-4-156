@@ -1,10 +1,3 @@
-Masa2o :)
-fl part bta3 lama 3moman 7assa eshta for now, bs fy improvement potential
-w hwa enno bdl ma el chunker sha8al b sentence splitter bs, fy 7aga tania esmha el code splitter
-bs hia sha8ala 3la lib esmaha tree-sitter which takes str w aslan el code splitter by pass bytes, fa I 
-tried to monkey patch it w nzlt version 2adema bmn el tree sitter bs still it didn't work I donoo whyyyyy
-fa 3yza a3dlha
-
 sup
 for the endpoints we might have: 
 1) /repos/index (POST) : run a repo through the pipeline
@@ -18,8 +11,19 @@ IMPORTANT:
 fix the fact that a repository gets cloned and re-indexed again even if it's already cached with no changes between local and remote
 repo id (like name of the folder it's saved in) shouldn't be just the repo name, cause two different authors/sources could have the same repo name, instead it should be author+name
 
-other: 
+MASA2O 2 :)
+3dlt el logic fadel feh 7tt el delete 
+chromadb deletes eshta mn el db bs it never deletes mn 3al disk 
+I tried kol 7aga bs a stupid reference kda byb2a lssa mt hold I donno mnen bgd fa db btb2a lssa locked
+I tried 7atta deleting using el cmd directly w it didn't work 
 
+TDLR:
+1- fix el delete (I donno how yet bs ha search aktr brdo)
+2- I don't think passing el repo id ka key 7aga kwysa 3moman 3shan el duplicates, I think it must use maslan 7aga zy
+salt and pepper (el repo name maslan+ 7bbt arkam random)
+3-rag engine
+
+other: 
 Since the app is called Repo-Illustrator and you have a visualizer.py file, you definitely need endpoints that output diagrams (like Mermaid.js, PlantUML, or React flow schemas) representing the repository.
 
 7) /repos/{id}/architecture (GET): Triggers the visualizer to map out folder structures, component dependencies, or database schemas.
