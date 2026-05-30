@@ -22,43 +22,119 @@ class RepositoryPreprocessor:
         self.output_folder = Path(output_folder)
         self.output_folder.mkdir(parents=True, exist_ok=True)
 
-    def prepare(self, repo_url_or_path: str) -> str:
+    def prepare(self, repo_url_or_path: str) -> tuple[str, bool]:
         repo_path = Path(repo_url_or_path)
         if repo_path.exists():
-            return self._copy_repo(repo_path)
+            return self._prepare_local(repo_path)
         else:
-            return self._clone_repo(repo_url_or_path)
+            return self._prepare_remote(repo_url_or_path)
 
-    def _clone_repo(self, url: str) -> str:
+
+    def _prepare_remote(self, url: str) -> tuple[str, bool]:
         repo_name = url.rstrip("/").split("/")[-1].replace(".git", "")
-        dest = self.output_folder / repo_name
-        if dest.exists():
-            self._force_rmtree(dest)
-        subprocess.run(["git", "clone", url, str(dest)], check=True)
-        self._clean(dest)
-        return str(dest)
+        raw_dest = Path("data/raw") / repo_name 
+        proc_dest = self.output_folder / repo_name
+        raw_dest.parent.mkdir(parents=True, exist_ok=True)
 
-    def _copy_repo(self, path: Path) -> str:
+        #gdeda
+        if not raw_dest.exists():
+            print(f"Cloning '{url}'")
+            subprocess.run(["git", "clone", url, str(raw_dest)], check=True)
+            self._sync_processed(raw_dest, proc_dest)
+            return str(proc_dest), True 
+        
+        # mawgoda
+        remote_hash = self._get_remote_head(url)
+        local_hash = self._get_local_head(raw_dest)
+
+        if remote_hash and local_hash and remote_hash == local_hash:
+            print(f"No updates for '{url}'. Reusing existing processed data.")
+            return str(proc_dest), False  #nothing changed
+
+        #changed
+        print(f"Updates detected for '{url}'. Pulling latest changes.")
+        subprocess.run(["git", "-C", str(raw_dest), "pull"], check=True)
+        self._sync_processed(raw_dest, proc_dest)
+        return str(proc_dest), True # must re-embed
+
+    def _prepare_local(self, path: Path) -> tuple[str, bool]:
         dest = self.output_folder / path.name
+        if not dest.exists():
+            print(f"Processing local repo at '{path}'")
+            self._sync_processed(path, dest)
+            return str(dest), True
+        
+        local_hash = self._get_local_head(path)
+        snapshot_hash = self._read_snapshot_hash(dest)
+        if local_hash and snapshot_hash and local_hash == snapshot_hash:
+            return str(dest), False
+
+        print(f"Processing updates for local repo at '{path}'")
+        self._sync_processed(path, dest)
+        return str(dest), True
+
+    def _sync_processed(self, src: Path, dest: Path):
         if dest.exists():
             self._force_rmtree(dest)
-        shutil.copytree(path, dest)
+        shutil.copytree(src, dest)
         self._clean(dest)
-        return str(dest)
+        # persist the commit hash so future runs can compare
+        local_hash = self._get_local_head(src)
+        if local_hash:
+            self._write_snapshot_hash(dest, local_hash)
 
     def _clean(self, folder: Path):
         git_dir = folder / ".git"
         if git_dir.exists():
             self._force_rmtree(git_dir)
 
-        for item in folder.rglob("*"):
+        for item in list(folder.rglob("*")):
             if item.is_dir() and any(skip in item.parts for skip in SKIP_DIRS):
                 if item.exists():
                     self._force_rmtree(item)
 
         for item in folder.rglob("*"):
             if item.is_file() and item.suffix not in SUPPORTED_EXTENSIONS:
-                item.unlink()
+                item.unlink(missing_ok=True)
+
+
+
+ 
+    @staticmethod
+    def _get_remote_head(url: str) -> str | None:
+        try:
+            result = subprocess.run(
+                ["git", "ls-remote", url, "HEAD"],
+                capture_output=True, text=True, timeout=15
+            )
+            line = result.stdout.strip()
+            return line.split()[0] if line else None
+        except Exception as e:
+            print(f"Could not fetch remote HEAD: {e}")
+            return None
+
+    @staticmethod
+    def _get_local_head(repo_path: Path) -> str | None:
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(repo_path), "rev-parse", "HEAD"],
+                capture_output=True, text=True
+            )
+            h = result.stdout.strip()
+            return h if h else None
+        except Exception:
+            return None
+
+    @staticmethod
+    def _snapshot_file(processed_path: Path) -> Path:
+        return processed_path / ".repo_snapshot_hash"
+
+    def _write_snapshot_hash(self, processed_path: Path, commit_hash: str):
+        self._snapshot_file(processed_path).write_text(commit_hash)
+
+    def _read_snapshot_hash(self, processed_path: Path) -> str | None:
+        f = self._snapshot_file(processed_path)
+        return f.read_text().strip() if f.exists() else None
 
     def _force_rmtree(self, path: Path):
         for file in path.rglob("*"):
