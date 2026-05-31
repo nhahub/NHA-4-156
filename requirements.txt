@@ -17,7 +17,7 @@ tf-keras
 
 chromadb
 
-tree-sitter==0.20.4
+tree-sitter
 tree-sitter-python
 tree-sitter-javascript
 tree-sitter-typescript
