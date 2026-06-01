@@ -50,7 +50,7 @@ async def chat(repo_id: str, request: Request, payload: ChatRequest):
     try: 
         chatbot = Chatbot(index=index, provider=payload.provider, model_name=payload.model_name)
         chat_engine = chatbot.get_chat_engine(history=history)
-        response = chat_engine.chat(payload.message)
+        response = await chat_engine.chat(payload.message)
         
         save_session(session_id, chat_engine.chat_history)
 
