@@ -12,17 +12,7 @@ uvicorn api.main:app --reload --reload-exclude "data/*" --reload-exclude "chroma
 
 ## Troubleshooting & Known Issues
 
-### 1. `TypeError: source : bytes object is not an instance of str` (tree-sitter)
-This error occurs in the LlamaIndex `CodeSplitter` due to a version mismatch between the core `tree-sitter` engine and the language grammars (like `tree-sitter-python`). 
-
-**Fix:** Completely uninstall the corrupted tree-sitter packages and reinstall to force the newer `0.22+` API standard bindings:
-```bash
-pip uninstall tree-sitter tree-sitter-python tree-sitter-javascript tree-sitter-typescript tree-sitter-java tree-sitter-cpp tree-sitter-c-sharp tree-sitter-go tree-sitter-rust tree-sitter-ruby
-pip install -r requirements.txt
-```
-
-
-### 2. CodeSplitter / tree-sitter version conflict
+### 1. `TypeError: source : bytes object is not an instance of str` (CodeSplitter / tree-sitter version conflict)
 LlamaIndex's `CodeSplitter` has a known incompatibility with certain versions of `tree-sitter` 
 related to a `bytes`/`str` API change introduced in `0.21+`. If you encounter:
 
