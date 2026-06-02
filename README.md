@@ -8,8 +8,8 @@ Start the FastAPI server using Uvicorn. To prevent the server from restarting an
 uvicorn api.main:app --reload --reload-exclude "data/*" --reload-exclude "chroma_db/*"
 ```
 
-(Note: You can omit the `--reload` flags entirely for production).
-
+(Note: You can omit the `--reload` flags entirely for production). \
+Once the server is running, you can explore the available endpoints and interactive documentation by referring to the [API Documentation](docs/api.md). 
 ## Troubleshooting & Known Issues
 
 ### 1. `TypeError: source : bytes object is not an instance of str` (CodeSplitter / tree-sitter version conflict)
