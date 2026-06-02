@@ -44,6 +44,15 @@ def get_repo_status(repo_id: str) -> dict:
         if row:
             return {"url": row[0], "status": row[1], "collection_name": row[2]}
         return None
+    
+def get_all_repos() -> list:
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.execute("SELECT repo_id, url, status, collection_name FROM registry")
+        rows = cursor.fetchall()
+        repos = []
+        for row in rows:
+            repos.append({"repo_id": row[0], "url": row[1], "status": row[2], "collection_name": row[3]})
+        return repos
 
 #sessions
 

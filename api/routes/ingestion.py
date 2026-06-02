@@ -3,7 +3,7 @@ from pydantic import BaseModel, HttpUrl
 import re
 from urllib.parse import urlparse
 from ingestion import pipeline
-from api.database import save_repo_status, get_repo_status
+from api.database import get_all_repos, save_repo_status, get_repo_status
 
 router = APIRouter()
 
@@ -49,3 +49,11 @@ async def get_status_endpoint(repo_id: str):
         "url": repo_info.get("url", "unknown"),
         "status": repo_info.get("status", "ready (loaded from disk)")
     }
+
+@router.get("/repos")
+async def list_repositories():
+    try:
+        repos = get_all_repos()
+        return {"repositories": repos}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve repositories: {str(e)}")
