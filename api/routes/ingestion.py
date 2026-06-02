@@ -14,8 +14,9 @@ def generate_repo_id(url: str) -> str:
     path = urlparse(url).path.strip('/')
     parts = path.split('/')
     if len(parts) >= 2:
-        return f"{parts[0]}__{parts[1]}".lower().replace('-', '_')
-    return re.sub(r'[^a-zA-Z0-9]', '_', path).lower()
+        repo = parts[1].replace('.git', '')
+        return f"{parts[0]}__{repo}".lower().replace('-', '_')
+    return re.sub(r'[^a-zA-Z0-9]', '_', path.replace('.git', '')).lower()
 
 def process_repo(repo_id: str, repo_url: str, state):
     ingest_pipeline = pipeline.IngestionPipeline()

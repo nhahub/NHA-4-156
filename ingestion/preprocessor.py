@@ -2,6 +2,8 @@ import shutil
 import subprocess
 from pathlib import Path
 import stat
+import re
+from urllib.parse import urlparse
 
 SKIP_DIRS = {"node_modules", ".git", "__pycache__", ".venv", "venv", "dist", "build", ".vscode", ".idea", "target", "out", "bin", "obj"}
 SUPPORTED_EXTENSIONS = {
@@ -30,8 +32,17 @@ class RepositoryPreprocessor:
             return self._prepare_remote(repo_url_or_path)
 
 
+    @staticmethod
+    def generate_repo_id(url: str) -> str:
+        path = urlparse(url).path.strip('/')
+        parts = path.split('/')
+        if len(parts) >= 2:
+            repo = parts[1].replace('.git', '')
+            return f"{parts[0]}__{repo}".lower().replace('-', '_')
+        return re.sub(r'[^a-zA-Z0-9]', '_', path.replace('.git', '')).lower()
+
     def _prepare_remote(self, url: str) -> tuple[str, bool]:
-        repo_name = url.rstrip("/").split("/")[-1].replace(".git", "")
+        repo_name = self.generate_repo_id(url)
         raw_dest = Path("data/raw") / repo_name 
         proc_dest = self.output_folder / repo_name
         raw_dest.parent.mkdir(parents=True, exist_ok=True)
