@@ -54,6 +54,10 @@ def get_all_repos() -> list:
             repos.append({"repo_id": row[0], "url": row[1], "status": row[2], "collection_name": row[3]})
         return repos
 
+def delete_repo_registry(repo_id: str):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("DELETE FROM registry WHERE repo_id = ?", (repo_id,))
+
 #sessions
 
 def save_session(session_id: str, history: list):
