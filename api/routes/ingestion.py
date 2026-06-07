@@ -1,9 +1,13 @@
+import shutil
+import sqlite3
 from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
+from pathlib import Path
 from pydantic import BaseModel, HttpUrl
 import re
 from urllib.parse import urlparse
 from ingestion import pipeline
-from api.database import get_all_repos, save_repo_status, get_repo_status
+from api.database import get_all_repos, save_repo_status, get_repo_status, delete_repo_registry
+from vectorstore.chroma_store import RepoVectorStore
 
 router = APIRouter()
 
@@ -50,7 +54,40 @@ async def get_status_endpoint(repo_id: str):
         "status": repo_info.get("status", "ready (loaded from disk)")
     }
 
-@router.get("/repos")
+@router.delete("/{repo_id}")
+async def delete_repository(repo_id: str, request: Request):
+    repo_info = get_repo_status(repo_id)
+    if not repo_info:
+        raise HTTPException(status_code=404, detail="Repository not found")
+
+    # Remove from ChromaDB
+    try:
+        store = RepoVectorStore(collection_name=repo_id)
+        store.client.delete_collection(name=repo_id)
+    except Exception as e:
+        print(f"ChromaDB cleanup note: {e}")
+
+    # Remove processed data from disk
+    processed_path = Path("data/processed") / repo_id
+    if processed_path.exists():
+        shutil.rmtree(processed_path)
+
+    # Remove raw cloned data from disk
+    raw_path = Path("data/raw") / repo_id
+    if raw_path.exists():
+        shutil.rmtree(raw_path)
+
+    # Remove from database
+    delete_repo_registry(repo_id)
+
+    # Clear index cache
+    app_state = request.app.state
+    if hasattr(app_state, 'index_cache') and repo_id in app_state.index_cache:
+        del app_state.index_cache[repo_id]
+
+    return {"message": f"Repository {repo_id} deleted successfully"}
+
+@router.get("/")
 async def list_repositories():
     try:
         repos = get_all_repos()

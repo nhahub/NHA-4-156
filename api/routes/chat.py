@@ -20,8 +20,15 @@ class ChatResponse(BaseModel):
     response: str
     session_id: str
 
+VALID_PROVIDERS = {"groq", "openrouter"}
+
 @router.post("/chat/{repo_id}", response_model=ChatResponse)
 async def chat(repo_id: str, request: Request, payload: ChatRequest):
+    if payload.provider and payload.provider not in VALID_PROVIDERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported provider '{payload.provider}'. Must be one of: {', '.join(sorted(VALID_PROVIDERS))}"
+        )
     app_state = request.app.state
     
     if hasattr(app_state, 'index_cache') and repo_id in app_state.index_cache:
