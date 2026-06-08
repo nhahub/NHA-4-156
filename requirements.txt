@@ -11,7 +11,8 @@ llama-index-llms-openrouter
 llama-index-embeddings-huggingface
 llama-index-vector-stores-chroma
 
-einops 
+einops
+sentence-transformers
 
 tf-keras
 
