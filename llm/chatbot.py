@@ -3,6 +3,7 @@ from llama_index.core import VectorStoreIndex
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.tools import QueryEngineTool, ToolMetadata
 from llama_index.core.agent import ReActAgent
+from rag.reranker import RepoReranker
 
 def llm_provider(provider : str = "groq", model_name : str = None, temperature : float = 0.7):
     if provider == "groq":
@@ -40,7 +41,10 @@ class Chatbot:
     def get_chat_engine(self, history : list = None):
         self._memory = ChatMemoryBuffer.from_defaults(token_limit=4000, chat_history=history or [])
         
-        query_engine = self.index.as_query_engine(llm=self.llm, similarity_top_k=5)
+        query_engine = self.index.as_query_engine(
+            llm=self.llm, similarity_top_k=20,
+            node_postprocessors=[RepoReranker()]
+        )
         codebase_tool = QueryEngineTool(
             query_engine=query_engine,
             metadata=ToolMetadata(
