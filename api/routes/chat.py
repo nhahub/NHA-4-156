@@ -54,8 +54,10 @@ async def chat(repo_id: str, request: Request, payload: ChatRequest):
     for msg in raw_history:
         history.append(ChatMessage(role=MessageRole(msg["role"]), content=msg["content"]))
     
-    try: 
-        chatbot = Chatbot(index=index, provider=payload.provider, model_name=payload.model_name)
+    repo_path = f"data/processed/{repo_id}"
+
+    try:
+        chatbot = Chatbot(index=index, repo_path=repo_path, provider=payload.provider, model_name=payload.model_name)
         chat_engine = chatbot.get_chat_engine(history=history)
         response = await chat_engine.chat(payload.message)
         
