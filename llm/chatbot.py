@@ -16,7 +16,7 @@ def llm_provider(provider : str = "groq", model_name : str = None, temperature :
 
     elif provider == "openrouter":
         from llama_index.llms.openrouter import OpenRouter
-        model = model_name or "deepseek/deepseek-v4-flash:free"
+        model = model_name or os.getenv("OPENROUTER_MODEL")
         return OpenRouter(model=model, api_key=os.getenv("OPENROUTER_API_KEY"), temperature=temperature)
 
     else:
@@ -137,10 +137,10 @@ class Chatbot:
         return tools
 
     def get_chat_engine(self, history : list = None):
-        self._memory = ChatMemoryBuffer.from_defaults(token_limit=4000, chat_history=history or [])
+        self._memory = ChatMemoryBuffer.from_defaults(token_limit=3000, chat_history=history or [])
 
         query_engine = self.index.as_query_engine(
-            llm=self.llm, similarity_top_k=20,
+            llm=self.llm, similarity_top_k=30,
             node_postprocessors=[RepoReranker()]
         )
         codebase_tool = QueryEngineTool(
