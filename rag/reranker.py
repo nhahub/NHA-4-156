@@ -1,17 +1,19 @@
-from typing import List, Optional
+from typing import List, Optional, Any
 from sentence_transformers import CrossEncoder
 from llama_index.core.bridge.pydantic import PrivateAttr
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.schema import NodeWithScore, QueryBundle
+from pydantic import Field
 
 
 class RepoReranker(BaseNodePostprocessor):
-    top_k: int = 5
+    top_k: int = Field(default=5)
     _model: CrossEncoder = PrivateAttr()
 
     def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2", top_k: int = 5):
         super().__init__(top_k=top_k)
         self._model = CrossEncoder(model_name)
+
 
     def _postprocess_nodes(
         self, nodes: List[NodeWithScore], query_bundle: Optional[QueryBundle] = None
