@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from llama_index.core import Settings
 from embeddings.embedder import RepoEmbedder
-from api.routes import chat, ingestion
+from api.routes import chat, ingestion, insight
 from api.database import init_db
 
 @asynccontextmanager
@@ -27,3 +27,4 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan, title="Repo Illustrator API")
 app.include_router(ingestion.router, prefix="/repos", tags=["Ingestion"])
 app.include_router(chat.router, prefix="/repos", tags=["Chat"])
+app.include_router(insight.router, prefix="/repos", tags=["Insight"])

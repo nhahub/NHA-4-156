@@ -28,17 +28,17 @@ class IngestionPipeline:
         Settings.chunk_overlap = 50
         Settings.embed_model = RepoEmbedder().get_embed_model()
 
-    def run(self, repo_url_or_path: str, repo_id: str) -> VectorStoreIndex:
+    def run(self, repo_url_or_path: str, repo_id: str) -> tuple[VectorStoreIndex, bool]:
         repo_path, was_updated = self.preprocessor.prepare(repo_url_or_path)
         vector_store = RepoVectorStore(collection_name=repo_id)
         embeddings_exist = vector_store.collection_exists()
 
 
         if embeddings_exist and not was_updated:
-            return VectorStoreIndex.from_vector_store(
+            index = VectorStoreIndex.from_vector_store(
                 vector_store=vector_store.get_vector_store()
             )
-
+            return index, False
 
         if embeddings_exist and was_updated:
             vector_store.reset_collection()
@@ -55,4 +55,4 @@ class IngestionPipeline:
         )
 
         print(f"Pipeline Done. {len(nodes)} chunks stored.")
-        return index
+        return index, True

@@ -6,7 +6,7 @@ from pydantic import BaseModel, HttpUrl
 import re
 from urllib.parse import urlparse
 from ingestion import pipeline
-from api.database import get_all_repos, save_repo_status, get_repo_status, delete_repo_registry
+from api.database import get_all_repos, save_repo_status, get_repo_status, delete_repo_registry, invalidate_repo_insight
 from vectorstore.chroma_store import RepoVectorStore
 
 router = APIRouter()
@@ -25,9 +25,11 @@ def generate_repo_id(url: str) -> str:
 def process_repo(repo_id: str, repo_url: str, state):
     ingest_pipeline = pipeline.IngestionPipeline()
     try:
-        index = ingest_pipeline.run(repo_url, repo_id)
+        index, was_updated = ingest_pipeline.run(repo_url, repo_id)
         save_repo_status(repo_id, repo_url, "ready", repo_id)
         state.index_cache[repo_id] = index
+        if was_updated:
+            invalidate_repo_insight(repo_id)
     except Exception as e:
         save_repo_status(repo_id, repo_url, f"error: {str(e)}")
 
