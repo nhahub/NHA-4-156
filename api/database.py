@@ -23,6 +23,15 @@ def init_db():
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # Insights Table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS insights (
+                repo_id TEXT PRIMARY KEY,
+                status TEXT NOT NULL,
+                insight_json TEXT,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
 #registry
 
@@ -44,7 +53,7 @@ def get_repo_status(repo_id: str) -> dict:
         if row:
             return {"url": row[0], "status": row[1], "collection_name": row[2]}
         return None
-    
+
 def get_all_repos() -> list:
     with sqlite3.connect(DB_FILE) as conn:
         cursor = conn.execute("SELECT repo_id, url, status, collection_name FROM registry")
@@ -84,3 +93,30 @@ def get_session(session_id: str) -> list:
 def delete_session(session_id: str):
     with sqlite3.connect(DB_FILE) as conn:
         conn.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+
+#insights
+
+def save_insight_status(repo_id: str, status: str, insight_json: str = None):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("""
+            INSERT INTO insights (repo_id, status, insight_json, last_updated)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(repo_id) DO UPDATE SET
+                status=excluded.status,
+                insight_json=COALESCE(excluded.insight_json, insights.insight_json),
+                last_updated=CURRENT_TIMESTAMP
+        """, (repo_id, status, insight_json))
+
+def get_repo_insight(repo_id: str) -> dict:
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.execute(
+            "SELECT status, insight_json, last_updated FROM insights WHERE repo_id = ?", (repo_id,)
+        )
+        row = cursor.fetchone()
+        if row:
+            return {"status": row[0], "insight_json": row[1], "last_updated": row[2]}
+        return None
+
+def invalidate_repo_insight(repo_id: str):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("DELETE FROM insights WHERE repo_id = ?", (repo_id,))
