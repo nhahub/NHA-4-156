@@ -33,7 +33,7 @@ class RepoVectorStore:
         self.vector_store = ChromaVectorStore(chroma_collection=self.collection)
         self.storage_context = StorageContext.from_defaults(vector_store=self.vector_store)
 
-    def reset_collection(self):
+    def _find_segment_folder(self) -> str | None:
         db = Path(self.db_path)
         conn = sqlite3.connect(db / "chroma.sqlite3")
         row = conn.execute("""
@@ -42,9 +42,13 @@ class RepoVectorStore:
         WHERE c.name = ? AND s.scope = 'VECTOR'
         """, (self.collection_name,)).fetchone()
         conn.close()
-        
-        old_folder = row[0] if row else None
-        print(f"Old folder: {old_folder}")  
+        return row[0] if row else None
+
+    def _delete_collection_and_disk_folder(self):
+        db = Path(self.db_path)
+        old_folder = self._find_segment_folder()
+        print(f"Old folder: {old_folder}")
+
         self.client.delete_collection(name=self.collection_name)
         if old_folder:
             try:
@@ -52,6 +56,10 @@ class RepoVectorStore:
                 print(f"Folder Deleted successfully")
             except Exception as e:
                 print(f"rmtree failed: {e}")
-        
+    def reset_collection(self):
+        self._delete_collection_and_disk_folder()
         self.client = chromadb.PersistentClient(path=self.db_path)
         self._setup_collection()
+
+    def delete_permanently(self):
+        self._delete_collection_and_disk_folder()

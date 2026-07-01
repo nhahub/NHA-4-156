@@ -1,11 +1,10 @@
-import shutil
-import sqlite3
 from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
 from pathlib import Path
 from pydantic import BaseModel, HttpUrl
 import re
 from urllib.parse import urlparse
 from ingestion import pipeline
+from ingestion.preprocessor import force_rmtree
 from api.database import get_all_repos, save_repo_status, get_repo_status, delete_repo_registry, invalidate_repo_insight
 from vectorstore.chroma_store import RepoVectorStore
 
@@ -65,19 +64,19 @@ async def delete_repository(repo_id: str, request: Request):
     # Remove from ChromaDB
     try:
         store = RepoVectorStore(collection_name=repo_id)
-        store.client.delete_collection(name=repo_id)
+        store.delete_permanently()
     except Exception as e:
         print(f"ChromaDB cleanup note: {e}")
 
     # Remove processed data from disk
     processed_path = Path("data/processed") / repo_id
     if processed_path.exists():
-        shutil.rmtree(processed_path)
+        force_rmtree(processed_path)
 
     # Remove raw cloned data from disk
     raw_path = Path("data/raw") / repo_id
     if raw_path.exists():
-        shutil.rmtree(raw_path)
+        force_rmtree(raw_path)
 
     # Remove from database
     delete_repo_registry(repo_id)

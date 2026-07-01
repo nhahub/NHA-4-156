@@ -19,6 +19,17 @@ SUPPORTED_EXTENSIONS = {
     ".html", ".css", ".xml", ".sh", ".bash", ".zsh",
 }
 
+def force_rmtree(path: Path):
+    if not path.exists():
+        return
+    for file in path.rglob("*"):
+        if file.is_file():
+            try:
+                file.chmod(stat.S_IWRITE)
+            except Exception:
+                pass
+    shutil.rmtree(path)
+
 class RepositoryPreprocessor:
     def __init__(self, output_folder: str = "data/processed"):
         self.output_folder = Path(output_folder)
@@ -148,7 +159,4 @@ class RepositoryPreprocessor:
         return f.read_text().strip() if f.exists() else None
 
     def _force_rmtree(self, path: Path):
-        for file in path.rglob("*"):
-            if file.is_file():
-                file.chmod(stat.S_IWRITE)
-        shutil.rmtree(path)
+        force_rmtree(path)
