@@ -3,6 +3,7 @@ from typing import List
 from pathlib import Path
 from llama_index.core.node_parser import SentenceSplitter, CodeSplitter
 from llama_index.core.schema import BaseNode, Document
+from networkx import nodes
 
 CODE_EXTENSIONS = {
     ".py", ".js", ".jsx", ".ts", ".tsx",
@@ -55,12 +56,24 @@ class RepositoryChunker:
         )
 
     def chunk_documents(self, documents: List[Document]) -> List[BaseNode]:
-        nodes = [] 
+        nodes = []
 
         for doc in documents:
             splitter = self._get_splitter_for_doc(doc)
-            nodes += splitter.get_nodes_from_documents([doc])
+            doc_nodes = splitter.get_nodes_from_documents([doc])
+            file_path = doc.metadata.get("file_path", "unknown")
+            repo_name = doc.metadata.get("repo_name", "unknown")
+
+            for node in doc_nodes:
+                original = node.get_content()
+                header = f"[repo: {repo_name}] [file: {file_path}]\n\n"
+                node.set_content(header + original)
+                node.metadata["file_path"] = file_path
+                node.metadata["repo_name"] = repo_name
+                node.excluded_llm_metadata_keys = ["file_path", "repo_name"]
         
+            nodes += doc_nodes
+
         return nodes
 
     def chunk_document(self, document: Document) -> List[BaseNode]:
@@ -87,9 +100,9 @@ class RepositoryChunker:
             try:
                 return CodeSplitter(
                     language=lang,
-                    chunk_lines=40,
-                    chunk_lines_overlap=5,
-                    max_chars=1500,
+                    chunk_lines=60,
+                    chunk_lines_overlap=10,
+                    max_chars=2500,
                 )
             except Exception as e:
                 return self.text_splitter
@@ -101,9 +114,9 @@ class RepositoryChunker:
             try:
                 return CodeSplitter(
                     language=lang,
-                    chunk_lines=40,
-                    chunk_lines_overlap=5,
-                    max_chars=1500,
+                    chunk_lines=60,
+                    chunk_lines_overlap=10,
+                    max_chars=2500,
                 )
             except Exception as e:
                 return self.text_splitter
