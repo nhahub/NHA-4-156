@@ -42,3 +42,30 @@ Beyond answering questions (RAG/Chat), a repo tool is excellent at generating fi
 
 big problem: when the api receives a new repo and is generating embeddings, it completely freezes ands tops responding until that is over. The solution is for the ml task to be decoupled from the api process (multiple solutions available but khleeha kda for now)
 premature optimization is the root of all evil
+
+
+erm...description baseeta lel insights lel mksl y2ra el code(dou7)
+
+-Endpoints: POST /{repo_id}/insight to start, GET /{repo_id}/insight to poll.
+
+-Flow:
+POST checks repo is ready, sets insight status to processing ->
+Background job runs generate_insight() in rag/insight_generator.py ->
+A ReActAgent explores data/processed/{repo_id} using file tools (can be improved i guess) ->
+Agent is prompted to return a JSON object ->
+Output is parsed ->
+Result is cached in the insights table ->
+GET reads from the insights table and returns current status and the result :D
+
+Response Structure:
+{
+  "repo_id": "...",
+  "status": "ready",
+  "last_updated": "...",
+  "result": {
+    "purpose": "...",
+    "tech_stack": ["..."],
+    "architecture": "...",
+    "key_files": [{"path": "...", "purpose": "..."}]
+  }
+}
