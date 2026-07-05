@@ -1,7 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export async function startIngestion(repoUrl) {
-  const res = await fetch(`${API_BASE}/ingest`, {
+  const res = await fetch(`${API_BASE}/repos/ingest`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ repo_url: repoUrl }),
@@ -11,12 +11,11 @@ export async function startIngestion(repoUrl) {
 }
 
 export async function getRepoStatus(repoId) {
-  const res = await fetch(`${API_BASE}/${repoId}/status`);
+  const res = await fetch(`${API_BASE}/repos/${repoId}/status`);
   if (!res.ok) throw new Error(`Status check failed: ${res.status}`);
-  return res.json(); 
+  return res.json();
 }
 
-
 export async function assistRepo(query) {
-    return null; //for now bs 
+  return null; // for now bs
 }

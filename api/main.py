@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 import os
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
@@ -11,7 +12,6 @@ from api.database import init_db
 async def lifespan(app: FastAPI):
     load_dotenv()
 
-    # Configure LlamaIndex settings globally
     Settings.chunk_size = 512
     Settings.chunk_overlap = 50
     Settings.embed_model = RepoEmbedder().get_embed_model()
@@ -26,6 +26,15 @@ async def lifespan(app: FastAPI):
     del app.state.agent_cache
 
 app = FastAPI(lifespan=lifespan, title="Repo Illustrator API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(ingestion.router, prefix="/repos", tags=["Ingestion"])
 app.include_router(chat.router, prefix="/repos", tags=["Chat"])
 app.include_router(insight.router, prefix="/repos", tags=["Insight"])
