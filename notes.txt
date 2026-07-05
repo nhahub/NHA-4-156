@@ -69,3 +69,18 @@ Response Structure:
     "key_files": [{"path": "...", "purpose": "..."}]
   }
 }
+
+rabe3's notes again:
+The chat response when it uses tools is abhorrently slow, it needs to be changed to streaming response (like how browser llms show word by word instead of waiting for the entire response), and that has to be implemented in frontend and back
+done ^
+the responses have formatting issues, or rather is meant to be displayed in whatever that parses latex properly but you'll find \n and other artifacts in the response.
+to be evaluated in frontend ^
+overall performance to be evaluated with frontend also
+this streaming shit is god awful
+idek how it's handled in front-end
+front-end needs to handle session ids also but thats relatively easy
+fix the negative-context-size bug in search_codebase so it doesn't silently fail, in a thousand line response one tool failed and idk why it said 
+event: tool_result
+data: {"text": "Calculated available context size -4387 was not non-negative."}
+
+idk

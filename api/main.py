@@ -19,10 +19,11 @@ async def lifespan(app: FastAPI):
     init_db()
 
     app.state.index_cache = {}
-    
+    app.state.agent_cache = {}
     yield
 
     del app.state.index_cache
+    del app.state.agent_cache
 
 app = FastAPI(lifespan=lifespan, title="Repo Illustrator API")
 app.include_router(ingestion.router, prefix="/repos", tags=["Ingestion"])
