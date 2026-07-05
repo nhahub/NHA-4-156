@@ -66,3 +66,36 @@ class Chatbot:
         handler = self._agent.run(user_msg=message, memory=self._memory)
         result = await handler
         return ChatResponse(response=result.response.content or "")
+
+    async def chat_stream(self, message: str):
+        from llama_index.core.agent.workflow.workflow_events import (
+            AgentStream,
+            ToolCallResult,
+        )
+
+        yield {"type": "thinking", "data": {}}
+
+        try:
+            handler = self._agent.run(user_msg=message, memory=self._memory)
+            response_text = ""
+
+            async for event in handler.stream_events():
+                if isinstance(event, AgentStream):
+                    if event.delta:
+                        response_text += event.delta
+                        yield {"type": "token", "data": {"text": event.delta}}
+                    if event.tool_calls:
+                        for tc in event.tool_calls:
+                            yield {"type": "tool_call", "data": {"tool": tc.tool_name}}
+                elif isinstance(event, ToolCallResult):
+                    yield {"type": "tool_result", "data": {"text": str(event.tool_output.content)[:500]}}
+
+            if not response_text:
+                stop_event = await handler
+                final_text = str(stop_event)
+                if final_text:
+                    yield {"type": "token", "data": {"text": final_text}}
+
+            yield {"type": "done", "data": {}}
+        except Exception as e:
+            yield {"type": "error", "data": {"text": str(e)}}
