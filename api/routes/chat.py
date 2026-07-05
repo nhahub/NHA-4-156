@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 import uuid
@@ -13,7 +14,7 @@ router = APIRouter()
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
-    provider: Optional[str] = "groq"
+    provider: Optional[str] = "openrouter"
     model_name: Optional[str] = None
 
 class ChatResponse(BaseModel):

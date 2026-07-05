@@ -4,7 +4,7 @@ from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.tools import QueryEngineTool, ToolMetadata
 from llama_index.core.agent import ReActAgent
 from rag.agent_tools import llm_provider, make_file_tools
-from rag.reranker import RepoReranker
+from rag.reranker import get_reranker
 
 class ChatResponse:
     def __init__(self, response: str):
@@ -36,7 +36,7 @@ class Chatbot:
 
         query_engine = self.index.as_query_engine(
             llm=self.llm, similarity_top_k=30,
-            node_postprocessors=[RepoReranker.get_instance()]
+            node_postprocessors=[get_reranker()]
         )
         codebase_tool = QueryEngineTool(
             query_engine=query_engine,

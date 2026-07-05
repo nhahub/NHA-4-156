@@ -10,7 +10,7 @@ SKIP_DIRS = {
 }
 
 
-def llm_provider(provider: str = "groq", model_name: str = None, temperature: float = 0.7, **kwargs):
+def llm_provider(provider: str = "openrouter", model_name: str = None, temperature: float = 0.7, **kwargs):
     if provider == "groq":
         from llama_index.llms.groq import Groq
         model = model_name or "llama-3.3-70b-versatile"
