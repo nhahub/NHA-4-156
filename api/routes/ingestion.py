@@ -1,4 +1,5 @@
-from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
+import asyncio
+from fastapi import APIRouter, Request, HTTPException
 from pathlib import Path
 from pydantic import BaseModel, HttpUrl
 import re
@@ -29,17 +30,22 @@ def process_repo(repo_id: str, repo_url: str, state):
         state.index_cache[repo_id] = index
         if was_updated:
             invalidate_repo_insight(repo_id)
+            if hasattr(state, 'agent_cache'):
+                keys_to_remove = [k for k in state.agent_cache if k.endswith(f":{repo_id}")]
+                for k in keys_to_remove:
+                    del state.agent_cache[k]
     except Exception as e:
         save_repo_status(repo_id, repo_url, f"error: {str(e)}")
 
 @router.post("/ingest")
-async def ingest_repository(request: Request, payload: IndexRequest, background_tasks: BackgroundTasks):
+async def ingest_repository(request: Request, payload: IndexRequest):
     repo_url = str(payload.repo_url)
     repo_id = generate_repo_id(repo_url)
     
     save_repo_status(repo_id, repo_url, "processing")
 
-    background_tasks.add_task(process_repo, repo_id, repo_url, request.app.state)
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, process_repo, repo_id, repo_url, request.app.state)
     
     return {"repo_id": repo_id, "message": f"Ingestion started. Check status with GET /{repo_id}/status"}
 
@@ -81,10 +87,14 @@ async def delete_repository(repo_id: str, request: Request):
     # Remove from database
     delete_repo_registry(repo_id)
 
-    # Clear index cache
+    # Clear caches
     app_state = request.app.state
     if hasattr(app_state, 'index_cache') and repo_id in app_state.index_cache:
         del app_state.index_cache[repo_id]
+    if hasattr(app_state, 'agent_cache'):
+        keys_to_remove = [k for k in app_state.agent_cache if k.endswith(f":{repo_id}")]
+        for k in keys_to_remove:
+            del app_state.agent_cache[k]
 
     return {"message": f"Repository {repo_id} deleted successfully"}
 

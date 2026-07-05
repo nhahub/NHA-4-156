@@ -1,9 +1,18 @@
-from typing import List, Optional, Any
+from typing import List, Optional
 from sentence_transformers import CrossEncoder
 from llama_index.core.bridge.pydantic import PrivateAttr
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.schema import NodeWithScore, QueryBundle
 from pydantic import Field
+
+_reranker_instance = None
+
+
+def get_reranker(model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2", top_k: int = 5):
+    global _reranker_instance
+    if _reranker_instance is None:
+        _reranker_instance = RepoReranker(model_name=model_name, top_k=top_k)
+    return _reranker_instance
 
 
 class RepoReranker(BaseNodePostprocessor):
