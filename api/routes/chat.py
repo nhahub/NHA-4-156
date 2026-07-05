@@ -1,8 +1,10 @@
+import json
+import uuid
+from typing import Optional
+
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Optional
-import uuid
 
 from llm.chatbot import Chatbot
 from rag.engine import load_repo_index  
@@ -23,6 +25,41 @@ class ChatResponse(BaseModel):
 
 VALID_PROVIDERS = {"groq", "openrouter"}
 
+
+async def _get_or_create_chatbot(repo_id: str, session_id: str, provider: str, model_name: str, app_state):
+    if hasattr(app_state, 'index_cache') and repo_id in app_state.index_cache:
+        index = app_state.index_cache[repo_id]
+    else:
+        repo_info = get_repo_status(repo_id)
+        if not repo_info:
+            raise HTTPException(status_code=404, detail="Repo metadata not found. Ingest the repo first.")
+        collection_name = repo_info.get("collection_name") or repo_id
+        index = load_repo_index(collection_name)
+        if not hasattr(app_state, 'index_cache'):
+            app_state.index_cache = {}
+        app_state.index_cache[repo_id] = index
+
+    if not session_id:
+        session_id = str(uuid.uuid4())
+
+    raw_history = get_session(session_id) or []
+    history = [ChatMessage(role=MessageRole(msg["role"]), content=msg["content"]) for msg in raw_history]
+
+    repo_path = f"data/processed/{repo_id}"
+
+    cache_key = f"{session_id}:{repo_id}"
+    if hasattr(app_state, 'agent_cache') and cache_key in app_state.agent_cache:
+        chatbot = app_state.agent_cache[cache_key]
+    else:
+        chatbot = Chatbot(index=index, repo_path=repo_path, provider=provider, model_name=model_name)
+        chatbot.get_chat_engine(history=history)
+        if not hasattr(app_state, 'agent_cache'):
+            app_state.agent_cache = {}
+        app_state.agent_cache[cache_key] = chatbot
+
+    return chatbot, session_id
+
+
 @router.post("/chat/{repo_id}", response_model=ChatResponse)
 async def chat(repo_id: str, request: Request, payload: ChatRequest):
     if payload.provider and payload.provider not in VALID_PROVIDERS:
@@ -30,49 +67,43 @@ async def chat(repo_id: str, request: Request, payload: ChatRequest):
             status_code=400,
             detail=f"Unsupported provider '{payload.provider}'. Must be one of: {', '.join(sorted(VALID_PROVIDERS))}"
         )
-    app_state = request.app.state
-    
-    if hasattr(app_state, 'index_cache') and repo_id in app_state.index_cache:
-        index = app_state.index_cache[repo_id]
-    else:
-        repo_info = get_repo_status(repo_id)
-        if not repo_info:
-            raise HTTPException(status_code=404, detail="Repo metadata not found. Ingest the repo first.")
-            
-        try:
-            collection_name = repo_info.get("collection_name") or repo_id
-            index = load_repo_index(collection_name)
-            if not hasattr(app_state, 'index_cache'):
-                app_state.index_cache = {}
-            app_state.index_cache[repo_id] = index
-        except Exception as e:
-            raise HTTPException(status_code=404, detail=f"Repo index not found: {str(e)}. Ingest the repo first.")
-        
-    session_id = payload.session_id or str(uuid.uuid4())
-    raw_history = get_session(session_id) or []
-    
-    history = []
-    for msg in raw_history:
-        history.append(ChatMessage(role=MessageRole(msg["role"]), content=msg["content"]))
-    
-    repo_path = f"data/processed/{repo_id}"
 
     try:
-        cache_key = f"{session_id}:{repo_id}"
-        if hasattr(app_state, 'agent_cache') and cache_key in app_state.agent_cache:
-            chatbot = app_state.agent_cache[cache_key]
-        else:
-            chatbot = Chatbot(index=index, repo_path=repo_path, provider=payload.provider, model_name=payload.model_name)
-            chatbot.get_chat_engine(history=history)
-            if not hasattr(app_state, 'agent_cache'):
-                app_state.agent_cache = {}
-            app_state.agent_cache[cache_key] = chatbot
-
+        chatbot, session_id = await _get_or_create_chatbot(
+            repo_id, payload.session_id or "", payload.provider, payload.model_name, request.app.state
+        )
         response = await chatbot.chat(payload.message)
         save_session(session_id, chatbot.chat_history)
-
         return ChatResponse(response=response.response, session_id=session_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error occurred while processing chat message: {str(e)}")
 
+
+@router.post("/chat/{repo_id}/stream")
+async def chat_stream(repo_id: str, request: Request, payload: ChatRequest):
+    if payload.provider and payload.provider not in VALID_PROVIDERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported provider '{payload.provider}'. Must be one of: {', '.join(sorted(VALID_PROVIDERS))}"
+        )
+
+    try:
+        chatbot, session_id = await _get_or_create_chatbot(
+            repo_id, payload.session_id or "", payload.provider, payload.model_name, request.app.state
+        )
+
+        async def event_generator():
+            try:
+                async for event in chatbot.chat_stream(payload.message):
+                    yield f"event: {event['type']}\ndata: {json.dumps(event['data'])}\n\n"
+            finally:
+                save_session(session_id, chatbot.chat_history)
+
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error occurred while processing chat message: {str(e)}")
     
