@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import Starfield from "./components/Starfield";
 import FloatingWords from "./components/FloatingWords";
 import Navbar from "./components/Navbar";
@@ -40,7 +40,7 @@ export default function App() {
               setLoading(false);
               setError(status);
             }
-            //polling l7d ma t5ls
+            // polling until done
           } catch (err) {
             clearInterval(interval);
             setLoading(false);
@@ -68,11 +68,7 @@ export default function App() {
         initial={{ opacity: 0, y: 28, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 w-full max-w-2xl rounded-[28px] border border-white/10
-                   bg-white/[0.05] backdrop-blur-2xl
-                   shadow-[0_0_80px_rgba(79,216,255,0.10)]
-                   px-8 py-12 md:px-14 md:py-16
-                   flex flex-col items-center gap-9 text-center"
+        className="relative z-10 w-full max-w-2xl flex flex-col items-center gap-9 text-center"
       >
         <div className="space-y-4">
           <motion.h1
@@ -81,24 +77,16 @@ export default function App() {
             transition={{ delay: 0.35, duration: 0.9 }}
             className="font-display font-semibold text-4xl md:text-6xl tracking-tight
                        bg-gradient-to-r from-[#eef1ff] via-[#4fd8ff] to-[#a78bfa]
-                       bg-clip-text text-transparent
-                       drop-shadow-[0_0_30px_rgba(79,216,255,0.35)]"
+                       bg-clip-text text-transparent"
           >
             Sha3boly el Repo
           </motion.h1>
-
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={mode}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.35 }}
-              className="font-body text-muted text-sm md:text-base max-w-md mx-auto"
-            >
-              {TAGLINES[mode]}
-            </motion.p>
-          </AnimatePresence>
+          <p
+            className="font-body text-muted text-sm md:text-base max-w-md mx-auto"
+            style={{ textShadow: "0 2px 12px rgba(5, 8, 20, 0.85)" }}
+          >
+            {TAGLINES[mode]}
+          </p>
         </div>
 
         <ModeToggle mode={mode} onChange={setMode} />
