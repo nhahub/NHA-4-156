@@ -72,4 +72,7 @@ Response Structure:
 
 rabe3's notes again:
 The chat response when it uses tools is abhorrently slow, it needs to be changed to streaming response (like how browser llms show word by word instead of waiting for the entire response), and that has to be implemented in frontend and back
+done ^
 the responses have formatting issues, or rather is meant to be displayed in whatever that parses latex properly but you'll find \n and other artifacts in the response.
+to be evaluated in frontend ^
+overall performance to be evaluated with frontend also
