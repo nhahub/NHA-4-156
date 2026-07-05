@@ -6,6 +6,30 @@ from llama_index.core.agent import ReActAgent
 from rag.agent_tools import llm_provider, make_file_tools
 from rag.reranker import get_reranker
 
+def _extract_answer(result: str) -> str:
+    if not result:
+        return ""
+
+    result = result.strip()
+    idx = result.lower().rfind("answer:")
+    if idx != -1:
+        return result[idx + len("Answer:"):].strip()
+    if result.lower().startswith("thought:"):
+        lines = result.split("\n")
+        answer_lines = []
+        recording = False
+        for line in lines:
+            stripped = line.strip()
+            if stripped.lower().startswith("answer:"):
+                answer_lines.append(stripped[len("answer:"):].strip() if len(stripped) > 7 else "")
+                recording = True
+            elif recording:
+                answer_lines.append(stripped)
+        if answer_lines:
+            return "\n".join(answer_lines).strip()
+    return result
+
+
 class ChatResponse:
     def __init__(self, response: str):
         self.response = response
@@ -14,7 +38,7 @@ class Chatbot:
     def __init__(self, index: VectorStoreIndex, repo_path: str = None, provider: str = "groq", model_name: str = None, temperature: float = 0.7):
         self.index = index
         self.repo_path = Path(repo_path) if repo_path else None
-        self.llm = llm_provider(provider=provider, model_name=model_name, temperature=temperature)
+        self.llm = llm_provider(provider=provider, model_name=model_name, temperature=temperature, is_function_calling_model=False)
 
         self.system_prompt = (
             "You are a senior software developer and expert Codebase Exploration Agent. "
@@ -26,7 +50,10 @@ class Chatbot:
             "- search_in_files: literal grep search across the codebase\n"
             "- get_repo_structure: overview of the repo layout\n"
             "Prefer reading actual files over relying solely on RAG snippets. "
-            "Always include code examples and format markdown properly."
+            "Always include code examples and format markdown properly.\n"
+            "CRITICAL: NEVER use <function> or <input> XML tags. "
+            "You MUST use this exact format for tool calls:\n"
+            "Thought: ...\nAction: tool_name\nAction Input: {...}"
         )
         self._agent = None
         self._memory = None
@@ -65,7 +92,8 @@ class Chatbot:
     async def chat(self, message: str) -> ChatResponse:
         handler = self._agent.run(user_msg=message, memory=self._memory)
         result = await handler
-        return ChatResponse(response=result.response.content or "")
+        clean = _extract_answer(result.response.content or "")
+        return ChatResponse(response=clean)
 
     async def chat_stream(self, message: str):
         from llama_index.core.agent.workflow.workflow_events import (
@@ -77,24 +105,26 @@ class Chatbot:
 
         try:
             handler = self._agent.run(user_msg=message, memory=self._memory)
-            response_text = ""
+            raw_deltas = ""
 
             async for event in handler.stream_events():
                 if isinstance(event, AgentStream):
                     if event.delta:
-                        response_text += event.delta
-                        yield {"type": "token", "data": {"text": event.delta}}
+                        raw_deltas += event.delta
+                        yield {"type": "thinking_delta", "data": {"text": event.delta}}
                     if event.tool_calls:
                         for tc in event.tool_calls:
                             yield {"type": "tool_call", "data": {"tool": tc.tool_name}}
                 elif isinstance(event, ToolCallResult):
                     yield {"type": "tool_result", "data": {"text": str(event.tool_output.content)[:500]}}
 
-            if not response_text:
-                stop_event = await handler
-                final_text = str(stop_event)
-                if final_text:
-                    yield {"type": "token", "data": {"text": final_text}}
+            result = await handler
+            clean = _extract_answer(raw_deltas)
+
+            if clean:
+                yield {"type": "token", "data": {"text": clean}}
+            else:
+                yield {"type": "token", "data": {"text": "Answer received."}}
 
             yield {"type": "done", "data": {}}
         except Exception as e:
