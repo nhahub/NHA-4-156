@@ -49,10 +49,31 @@ const DEPTH_LAYERS = [
   },
 ];
 
+
+const HERO_EXCLUSION = { top: 14, bottom: 72, left: 8, right: 92 };
+
 const rand = (min, max) => Math.random() * (max - min) + min;
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+
+const avoidHero = (left, top) => {
+  const { top: t, bottom: b, left: l, right: r } = HERO_EXCLUSION;
+  if (left < l || left > r || top < t || top > b) return { left, top };
+
+  const distTop = top - t;
+  const distBottom = b - top;
+  const distLeft = left - l;
+  const distRight = r - left;
+  const minDist = Math.min(distTop, distBottom, distLeft, distRight);
+
+  if (minDist === distTop) return { left, top: Math.max(2, t - 4) };
+  if (minDist === distBottom) return { left, top: Math.min(98, b + 4) };
+  if (minDist === distLeft) return { left: Math.max(2, l - 4), top };
+  return { left: Math.min(98, r + 4), top };
+};
+
 //words elly fl props dy htb2a mn el dictionary (I expect ennaha htb2a array b2a)
-export default function FloatingWords({ words, density = 22 }) { 
+export default function FloatingWords({ words, density = 22 }) {
   const [instances, setInstances] = useState([]);
   const gridRef = useRef({ cols: 1, rows: 1 });
 
@@ -79,8 +100,10 @@ export default function FloatingWords({ words, density = 22 }) {
       const cellW = 100 / cols;
       const cellH = 100 / rows;
 
-      const left = col * cellW + cellW / 2 + (Math.random() - 0.5) * cellW * 0.6;
-      const top = row * cellH + cellH / 2 + (Math.random() - 0.5) * cellH * 0.6;
+      const rawLeft = col * cellW + cellW / 2 + (Math.random() - 0.5) * cellW * 0.6;
+      const rawTop = row * cellH + cellH / 2 + (Math.random() - 0.5) * cellH * 0.6;
+
+      const { left, top } = avoidHero(rawLeft, rawTop);
 
       const layer = pick(DEPTH_LAYERS);
       const angle = rand(0, Math.PI * 2);
