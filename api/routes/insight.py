@@ -102,7 +102,11 @@ async def get_insight(repo_id: str):
 
     result = None
     if cached["status"] == "ready" and cached["insight_json"]:
-        result = InsightResult(**json.loads(cached["insight_json"]))
+        # result = InsightResult(**json.loads(cached["insight_json"])) wrong khalebalkoo, because key_files is a list of dicts, not KeyFile objects. We need to convert them.
+        #fix: convert key_files dicts to KeyFile objects
+        raw = json.loads(cached["insight_json"])
+        raw["key_files"] = [KeyFile(**kf) for kf in raw.get("key_files", [])]
+        result = InsightResult(**raw)
 
     return InsightStatusResponse(
         repo_id=repo_id,
