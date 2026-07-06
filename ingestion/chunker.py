@@ -3,7 +3,6 @@ from typing import List
 from pathlib import Path
 from llama_index.core.node_parser import SentenceSplitter, CodeSplitter
 from llama_index.core.schema import BaseNode, Document
-from networkx import nodes
 
 CODE_EXTENSIONS = {
     ".py", ".js", ".jsx", ".ts", ".tsx",
