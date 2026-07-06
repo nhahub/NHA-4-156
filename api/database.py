@@ -32,6 +32,16 @@ def init_db():
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        
+        # added Charts Table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS charts (
+                repo_id TEXT PRIMARY KEY,
+                status TEXT NOT NULL,
+                chart_json TEXT,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
 #registry
 
@@ -120,3 +130,29 @@ def get_repo_insight(repo_id: str) -> dict:
 def invalidate_repo_insight(repo_id: str):
     with sqlite3.connect(DB_FILE) as conn:
         conn.execute("DELETE FROM insights WHERE repo_id = ?", (repo_id,))
+        
+# charts saving and retrieving functions
+def save_chart_status(repo_id: str, status: str, chart_json: str = None):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("""
+            INSERT INTO charts (repo_id, status, chart_json, last_updated)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(repo_id) DO UPDATE SET
+                status=excluded.status,
+                chart_json=COALESCE(excluded.chart_json, charts.chart_json),
+                last_updated=CURRENT_TIMESTAMP
+        """, (repo_id, status, chart_json))
+
+def get_repo_chart(repo_id: str) -> dict:
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.execute(
+            "SELECT status, chart_json, last_updated FROM charts WHERE repo_id = ?", (repo_id,)
+        )
+        row = cursor.fetchone()
+        if row:
+            return {"status": row[0], "chart_json": row[1], "last_updated": row[2]}
+        return None
+
+def invalidate_repo_chart(repo_id: str):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("DELETE FROM charts WHERE repo_id = ?", (repo_id,))
