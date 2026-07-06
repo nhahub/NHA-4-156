@@ -90,7 +90,7 @@ class Chatbot:
         return self._memory.get()
 
     async def chat(self, message: str) -> ChatResponse:
-        handler = self._agent.run(user_msg=message, memory=self._memory)
+        handler = self._agent.run(user_msg=message)
         result = await handler
         clean = _extract_answer(result.response.content or "")
         return ChatResponse(response=clean)
@@ -104,7 +104,7 @@ class Chatbot:
         yield {"type": "thinking", "data": {}}
 
         try:
-            handler = self._agent.run(user_msg=message, memory=self._memory)
+            handler = self._agent.run(user_msg=message)
             raw_deltas = ""
 
             async for event in handler.stream_events():
