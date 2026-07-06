@@ -84,3 +84,62 @@ event: tool_result
 data: {"text": "Calculated available context size -4387 was not non-negative."}
 
 idk
+
+yassin's notes 
+salam 3alekom awlan charts + insights provider - done :)
+added insights/ folder (new):
+  __init__.py   - empty
+  provider.py   - extracts language_breakdown + dependencies using ReActAgent
+                  same pattern as insight_generator.py, uses llm_provider + make_file_tools from rag/agent_tools.py
+                  also fetches contributors from GitHub API (commits, additions, deletions per person)
+                  entry point: await build_repo_insights(repo_id, repo_url, provider, model_name)
+ 
+  insightvisualizer.py - pure data transformer, no LLM, no API calls
+                  takes repo_insights dict -> chart-ready JSON frontend renders directly
+                  3 charts: pie (languages), dependency graph (nodes + edges), contributors (bar + table)
+                  uses real GitHub language colors
+                  entry point: build_chart_data(repo_insights) -> {"charts": {...}}
+ 
+added api/routes/charts.py (new):
+  same POST/GET pattern as insight.py
+  POST /{repo_id}/charts -> triggers background job, returns immediately
+  GET  /{repo_id}/charts -> poll status, returns full chart JSON when ready
+  won't re-run if already processing or ready
+ 
+edited (small changes only):
+  api/main.py             -> added charts to import + app.include_router at the bottom
+  api/database.py         -> added charts table in init_db() + 3 functions: save_chart_status, get_repo_chart, invalidate_repo_chart
+  api/routes/ingestion.py -> added invalidate_repo_chart alongside invalidate_repo_insight on re-ingest
+  requirements.txt        -> added requests (needed for GitHub API)
+ 
+added frontend/src/pages/RepoIllustrationPage.jsx:
+  page at /repo/:repoId/illustration
+  POST /charts on load -> polls GET /charts every 3s -> renders 3 cards when ready
+  LanguageBar     -> stacked bar + legend
+  DependencyList  -> packages grouped by ecosystem as pill badges
+  ContributorsList-> top 10 leaderboard with activity bars
+ 
+added frontend/src/lib/api.jsx (2 new functions):
+  startCharts(repoId) -> POST /{repo_id}/charts
+  getCharts(repoId)   -> GET  /{repo_id}/charts
+ 
+add to .env:
+  GITHUB_TOKEN=your_token_here
+  (byzawedha le upto 5000 request/hr)
+  (without it contributors still works bs rate limited 3and 60 req/hr)
+
+bug fixes i found and fixed
+chunker.py line 6: deleted "from networkx import nodes"
+  -> networkx has nothing to do with chunking
+  -> was shadowing the local nodes variable inside chunk_documents()
+
+chatbot.py lines 93 + 107: removed memory=self._memory from agent.run()
+  -> ReActAgent.run() doesn't accept a memory param
+  -> memory is already attached during agent construction via ChatMemoryBuffer
+
+insight.py line 105: fixed InsightResult crash on key_files
+  -> json.loads gives plain dicts, pydantic can't auto-convert them to KeyFile
+  -> fix:
+     raw = json.loads(cached["insight_json"])
+     raw["key_files"] = [KeyFile(**kf) for kf in raw.get("key_files", [])]
+     result = InsightResult(**raw)
