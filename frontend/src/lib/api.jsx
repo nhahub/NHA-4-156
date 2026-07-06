@@ -19,3 +19,19 @@ export async function getRepoStatus(repoId) {
 export async function assistRepo(query) {
   return null; // for now bs
 }
+
+export async function startCharts(repoId) {
+  const res = await fetch(`${API_BASE}/repos/${repoId}/charts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "groq" }),
+  });
+  if (!res.ok) throw new Error(`Charts request failed: ${res.status}`);
+  return res.json();
+}
+
+export async function getCharts(repoId) {
+  const res = await fetch(`${API_BASE}/repos/${repoId}/charts`);
+  if (!res.ok) throw new Error(`Charts fetch failed: ${res.status}`);
+  return res.json();
+}
