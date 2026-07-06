@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from llama_index.core import Settings
 from embeddings.embedder import RepoEmbedder
-from api.routes import chat, ingestion, insight
+from api.routes import chat, ingestion, insight, charts
 from api.database import init_db
 
 @asynccontextmanager
@@ -38,3 +38,5 @@ app.add_middleware(
 app.include_router(ingestion.router, prefix="/repos", tags=["Ingestion"])
 app.include_router(chat.router, prefix="/repos", tags=["Chat"])
 app.include_router(insight.router, prefix="/repos", tags=["Insight"])
+app.include_router(insight.router, prefix="/repos", tags=["Insight"])
+app.include_router(charts.router, prefix="/repos", tags=["Charts"])
