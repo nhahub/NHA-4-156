@@ -28,3 +28,5 @@ tree-sitter-c-sharp
 tree-sitter-go
 tree-sitter-rust
 tree-sitter-ruby
+
+requests
