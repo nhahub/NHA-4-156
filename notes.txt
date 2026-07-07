@@ -94,7 +94,7 @@ added insights/ folder (new):
                   also fetches contributors from GitHub API (commits, additions, deletions per person)
                   entry point: await build_repo_insights(repo_id, repo_url, provider, model_name)
  
-  insightvisualizer.py - pure data transformer, no LLM, no API calls
+  visualizer.py - pure data transformer, no LLM, no API calls
                   takes repo_insights dict -> chart-ready JSON frontend renders directly
                   3 charts: pie (languages), dependency graph (nodes + edges), contributors (bar + table)
                   uses real GitHub language colors
