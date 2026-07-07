@@ -3,15 +3,9 @@ import { useParams } from "react-router-dom";
 import { startCharts, getCharts } from "../lib/api";
 import Navbar from "../components/Navbar";
 import Starfield from "../components/Starfield";
+import ChatWindow from "../components/ChatWindow";
 
 
-/*
-=== LanguageBar ===
-  Renders a stacked horizontal bar showing language breakdown
-  Each segment is one language colored and sized by its percentage
-  Below the bar is a legend with color dot + name + percentage
-  Props: labels, values, colors (all arrays, same order)
-*/
 function LanguageBar({ labels, values, colors }) {
   return (
     <div className="space-y-3">
@@ -41,14 +35,6 @@ function LanguageBar({ labels, values, colors }) {
 }
 
 
-/*
-=== DependencyList ===
-  Renders dependencies grouped by ecosystem
-  Each ecosystem shows its packages as pill badges
-  Props:
-    nodes   => array of ecosystem and package node objects
-    summary => { total_packages, by_ecosystem }
-*/
 function DependencyList({ nodes, summary }) {
   const ecosystems = nodes.filter(n => n.type === "ecosystem");
   const packages   = nodes.filter(n => n.type === "package");
@@ -89,13 +75,6 @@ function DependencyList({ nodes, summary }) {
 }
 
 
-/*
-=== ContributorsList ===
-  Renders top 10 contributors as a leaderboard
-  Each row has: rank, avatar, username linked to github, activity bar, commit count
-  Activity bar width is relative to the top contributor
-  Props: table => sorted array of contributor objects
-*/
 function ContributorsList({ table }) {
   const top = table.slice(0, 10);
   const max = top[0]?.commits || 1;
@@ -139,14 +118,6 @@ function ContributorsList({ table }) {
   );
 }
 
-
-/*
-=== Card ===
-  Reusable dark glass wrapper for each chart section
-  Props:
-    title    => card header text
-    children => content inside
-*/
 function Card({ title, children }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-sm p-6 space-y-4">
@@ -158,18 +129,6 @@ function Card({ title, children }) {
   );
 }
 
-
-/*
-=== RepoIllustrationPage ===
-  Main page at /repo/:repoId/illustration
-  On load: triggers chart generation (POST) then polls every 3s (GET)
-  3 states:
-    loading => spinner while charts are generating
-    error   => error message with retry button
-    ready   => renders the 3 chart cards
-  Each card only renders if its data is not empty
-  Shows fallback message if all 3 are empty
-*/
 export default function RepoIllustrationPage() {
   const { repoId } = useParams();
 
@@ -225,6 +184,7 @@ export default function RepoIllustrationPage() {
           <div className="w-8 h-8 rounded-full border-2 border-cyan border-t-transparent animate-spin" />
           <p className="font-mono text-sm text-muted">Generating charts...</p>
         </div>
+        <ChatWindow repoId={repoId} />
       </div>
     );
   }
@@ -243,6 +203,7 @@ export default function RepoIllustrationPage() {
             try again
           </button>
         </div>
+        <ChatWindow repoId={repoId} />
       </div>
     );
   }
@@ -296,6 +257,8 @@ export default function RepoIllustrationPage() {
         )}
 
       </div>
+
+      <ChatWindow repoId={repoId} />
     </div>
   );
 }
