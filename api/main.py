@@ -38,5 +38,4 @@ app.add_middleware(
 app.include_router(ingestion.router, prefix="/repos", tags=["Ingestion"])
 app.include_router(chat.router, prefix="/repos", tags=["Chat"])
 app.include_router(insight.router, prefix="/repos", tags=["Insight"])
-app.include_router(insight.router, prefix="/repos", tags=["Insight"])
 app.include_router(charts.router, prefix="/repos", tags=["Charts"])
