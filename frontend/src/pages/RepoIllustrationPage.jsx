@@ -300,7 +300,6 @@ function PieChart({ labels, values, colors }) {
           </div>
         ))}
       </div>
-      <ChatWindow repoId={repoId} />
     </div>
   );
 }
