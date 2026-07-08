@@ -123,8 +123,33 @@ def build_contributors_chart(contributors: list) -> dict:
 def build_chart_data(repo_insights: dict) -> dict:
     return {
         "charts": {
+            "overview":           build_overview(repo_insights),
             "language_breakdown": build_language_pie(repo_insights.get("language_breakdown", {})),
             "dependencies":       build_dependency_graph(repo_insights.get("dependencies", {})),
             "contributors":       build_contributors_chart(repo_insights.get("contributors", [])),
+            "analytics":          build_analytics(repo_insights),
         }
+    }
+
+def build_overview(repo_insights: dict) -> dict:
+    analysis = repo_insights.get("analysis", {})
+    return {
+        "chart_type": "overview",
+        "title": "Overview",
+        "data": {
+            "summary":     repo_insights.get("summary", ""),
+            "description": analysis.get("github_description", ""),
+            "health":      analysis.get("health", {}),
+            "metrics":     analysis.get("metrics", {}),
+            "tech_stack":  repo_insights.get("language_breakdown", {}),
+        },
+    }
+
+
+def build_analytics(repo_insights: dict) -> dict:
+    analysis = repo_insights.get("analysis", {})
+    return {
+        "chart_type": "analytics",
+        "title": "Codebase Analytics",
+        "data": analysis.get("analytics", {}),
     }
