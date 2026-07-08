@@ -14,6 +14,22 @@ function RocketIcon({ className }) {
   );
 }
 
+function ChevronIcon({ className, open }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`${className} transition-transform duration-150 ${open ? "rotate-90" : ""}`}
+    >
+      <path d="M9 18l6-6-6-6" />
+    </svg>
+  );
+}
+
 function typeOutText(fullText, onUpdate, onComplete) {
   const words = fullText.split(" ");
   let i = 0;
@@ -28,15 +44,37 @@ function typeOutText(fullText, onUpdate, onComplete) {
   return () => clearInterval(interval);
 }
 
+function ThinkingToggle({ thinking, expanded, onToggle, live }) {
+  if (!thinking) return null;
+  return (
+    <div className="max-w-[85%]">
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-1 font-mono text-[11px] text-muted hover:text-cyan transition-colors px-1 py-0.5"
+      >
+        <ChevronIcon className="w-3 h-3" open={expanded} />
+        <span className={live ? "animate-pulse" : ""}>
+          {live ? "Thinking..." : "Thinking"}
+        </span>
+      </button>
+      {expanded && (
+        <div className="font-mono text-xs text-muted/70 whitespace-pre-wrap px-3 py-2 mb-1 rounded-lg bg-white/5 border border-white/10">
+          {thinking}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ChatWindow({ repoId }) {
   const [open, setOpen] = useState(false);
   const [sessionId, setSessionIdState] = useState(() => getSessionId(repoId));
-  const [messages, setMessages] = useState([]); 
+  const [messages, setMessages] = useState([]); // { role, content, thinking? }
   const [input, setInput] = useState("");
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [sending, setSending] = useState(false);
-  const [liveTrace, setLiveTrace] = useState(""); 
   const [error, setError] = useState(null);
+  const [expandedThinking, setExpandedThinking] = useState(() => new Set());
 
   const scrollRef = useRef(null);
   const finalAnswerRef = useRef("");
@@ -66,11 +104,20 @@ export default function ChatWindow({ repoId }) {
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, sending, liveTrace]);
+  }, [messages, sending]);
 
   useEffect(() => {
     return () => stopTypingRef.current?.();
   }, []);
+
+  function toggleThinking(idx) {
+    setExpandedThinking(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  }
 
   async function handleSend() {
     const text = input.trim();
@@ -78,19 +125,34 @@ export default function ChatWindow({ repoId }) {
 
     setError(null);
     setInput("");
-    setLiveTrace("");
     finalAnswerRef.current = "";
-    setMessages(prev => [...prev, { role: "user", content: text }, { role: "assistant", content: "" }]);
+    setMessages(prev => [
+      ...prev,
+      { role: "user", content: text },
+      { role: "assistant", content: "", thinking: "" },
+    ]);
     setSending(true);
+
+    const assistantIdx = messages.length + 1;
+
+    function appendThinking(chunk) {
+      setMessages(prev => {
+        const next = [...prev];
+        const cur = next[assistantIdx];
+        if (!cur) return prev;
+        next[assistantIdx] = { ...cur, thinking: (cur.thinking || "") + chunk };
+        return next;
+      });
+    }
 
     try {
       await streamChatMessage(repoId, text, sessionId, "groq", (type, data) => {
         switch (type) {
           case "thinking_delta":
-            setLiveTrace(prev => prev + data.text);
+            appendThinking(data.text);
             break;
           case "tool_call":
-            setLiveTrace(prev => prev + `\n[using ${data.tool}...]\n`);
+            appendThinking(`\n[using ${data.tool}...]\n`);
             break;
           case "tool_result":
             break;
@@ -98,13 +160,13 @@ export default function ChatWindow({ repoId }) {
             finalAnswerRef.current = data.text;
             break;
           case "done":
-            setLiveTrace("");
             stopTypingRef.current = typeOutText(
               finalAnswerRef.current,
               (partial) => {
                 setMessages(prev => {
                   const next = [...prev];
-                  next[next.length - 1] = { role: "assistant", content: partial };
+                  const cur = next[assistantIdx];
+                  next[assistantIdx] = { ...cur, role: "assistant", content: partial };
                   return next;
                 });
               },
@@ -144,7 +206,7 @@ export default function ChatWindow({ repoId }) {
     const fresh = getSessionId(repoId);
     setSessionIdState(fresh);
     setMessages([]);
-    setLiveTrace("");
+    setExpandedThinking(new Set());
     setError(null);
   }
 
@@ -172,30 +234,39 @@ export default function ChatWindow({ repoId }) {
             </div>
           </div>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
             {loadingHistory ? (
               <p className="font-mono text-xs text-muted">loading history...</p>
             ) : messages.length === 0 ? (
               <p className="font-mono text-xs text-muted">Ask anything about this repo.</p>
             ) : (
-              messages.map((m, i) => (
-                <div
-                  key={i}
-                  className={`font-mono text-sm px-3 py-2 rounded-xl max-w-[85%] whitespace-pre-wrap ${
-                    m.role === "user"
-                      ? "ml-auto bg-cyan/20 text-star border border-cyan/30"
-                      : "bg-white/5 text-star/90 border border-white/10"
-                  }`}
-                >
-                  {m.content}
-                </div>
-              ))
-            )}
-
-            {sending && liveTrace && (
-              <div className="font-mono text-xs text-muted/70 whitespace-pre-wrap px-3">
-                {liveTrace}
-              </div>
+              messages.map((m, i) => {
+                const isLast = i === messages.length - 1;
+                const stillThinking = sending && isLast && m.role === "assistant" && !m.content;
+                return (
+                  <div key={i} className={m.role === "user" ? "flex flex-col items-end" : "flex flex-col items-start"}>
+                    {m.role === "assistant" && (
+                      <ThinkingToggle
+                        thinking={m.thinking}
+                        expanded={expandedThinking.has(i)}
+                        onToggle={() => toggleThinking(i)}
+                        live={stillThinking}
+                      />
+                    )}
+                    {m.content && (
+                      <div
+                        className={`font-mono text-sm px-3 py-2 rounded-xl max-w-[85%] whitespace-pre-wrap ${
+                          m.role === "user"
+                            ? "bg-cyan/20 text-star border border-cyan/30"
+                            : "bg-white/5 text-star/90 border border-white/10"
+                        }`}
+                      >
+                        {m.content}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
 
             {error && (
