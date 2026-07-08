@@ -42,9 +42,19 @@ def init_db():
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        
+        #added Docs Table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS docs (
+                repo_id TEXT PRIMARY KEY,
+                status TEXT NOT NULL,
+                docs_json TEXT,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
 
 #registry
-
 def save_repo_status(repo_id: str, url: str, status: str, collection_name: str = None):
     with sqlite3.connect(DB_FILE) as conn:
         conn.execute("""
@@ -156,3 +166,30 @@ def get_repo_chart(repo_id: str) -> dict:
 def invalidate_repo_chart(repo_id: str):
     with sqlite3.connect(DB_FILE) as conn:
         conn.execute("DELETE FROM charts WHERE repo_id = ?", (repo_id,))
+
+# docs
+
+def save_docs_status(repo_id: str, status: str, docs_json: str = None):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("""
+            INSERT INTO docs (repo_id, status, docs_json, last_updated)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(repo_id) DO UPDATE SET
+                status=excluded.status,
+                docs_json=COALESCE(excluded.docs_json, docs.docs_json),
+                last_updated=CURRENT_TIMESTAMP
+        """, (repo_id, status, docs_json))
+
+def get_repo_docs(repo_id: str) -> dict:
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.execute(
+            "SELECT status, docs_json, last_updated FROM docs WHERE repo_id = ?", (repo_id,)
+        )
+        row = cursor.fetchone()
+        if row:
+            return {"status": row[0], "docs_json": row[1], "last_updated": row[2]}
+        return None
+
+def invalidate_repo_docs(repo_id: str):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("DELETE FROM docs WHERE repo_id = ?", (repo_id,))

@@ -6,7 +6,7 @@ import re
 from urllib.parse import urlparse
 from ingestion import pipeline
 from ingestion.preprocessor import force_rmtree
-from api.database import get_all_repos, save_repo_status, get_repo_status, delete_repo_registry, invalidate_repo_insight, invalidate_repo_chart
+from api.database import get_all_repos, save_repo_status, get_repo_status, delete_repo_registry, invalidate_repo_insight, invalidate_repo_chart, invalidate_repo_docs
 from vectorstore.chroma_store import RepoVectorStore
 
 router = APIRouter()
@@ -30,8 +30,9 @@ def process_repo(repo_id: str, repo_url: str, state):
         state.index_cache[repo_id] = index
         if was_updated:
             invalidate_repo_insight(repo_id)
-            #added invalidate chart too
+            #added invalidate chart + document too
             invalidate_repo_chart(repo_id)
+            invalidate_repo_docs(repo_id)
             if hasattr(state, 'agent_cache'):
                 keys_to_remove = [k for k in state.agent_cache if k.endswith(f":{repo_id}")]
                 for k in keys_to_remove:
