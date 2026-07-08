@@ -3,6 +3,7 @@ from llama_index.core import VectorStoreIndex
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.tools import QueryEngineTool, ToolMetadata
 from llama_index.core.agent import ReActAgent
+from llama_index.core.llms import ChatMessage, MessageRole
 from rag.agent_tools import llm_provider, make_file_tools
 from rag.reranker import get_reranker
 
@@ -28,6 +29,28 @@ def _extract_answer(result: str) -> str:
         if answer_lines:
             return "\n".join(answer_lines).strip()
     return result
+
+
+def friendly_error_message(e: Exception) -> str:
+    """
+    Converts raw provider exceptions (Groq/OpenRouter error blobs, etc.) into
+    a short message safe to show in the chat UI. The full raw error should
+    still be logged server-side wherever this is called from, so debugging
+    info isn't lost.
+    """
+    text = str(e)
+    lower = text.lower()
+
+    if "rate_limit_exceeded" in lower or "rate limit" in lower or "429" in text:
+        return "The AI provider's rate limit was reached. Please wait a bit and try again, or switch providers."
+    if "401" in text or "unauthorized" in lower or "invalid api key" in lower:
+        return "Authentication with the AI provider failed. Check the API key configuration."
+    if "timeout" in lower or "timed out" in lower:
+        return "The request to the AI provider timed out. Please try again."
+    if "503" in text or "service unavailable" in lower:
+        return "The AI provider is temporarily unavailable. Please try again shortly."
+
+    return "Something went wrong while generating a response. Please try again."
 
 
 class ChatResponse:
@@ -74,6 +97,7 @@ class Chatbot:
         )
 
         tools = [codebase_tool] + make_file_tools(self.repo_path)
+
         self._agent = ReActAgent(
             tools=tools,
             llm=self.llm,
@@ -88,10 +112,30 @@ class Chatbot:
             return []
         return self._memory.get()
 
+    def _sanitize_last_assistant_message(self, clean_text: str):
+        """
+        self._agent.run(memory=self._memory) writes the RAW final completion
+        into memory as the assistant's turn -- the full ReAct
+        "Thought:/Action:/Observation:/Answer:" scaffolding, not the cleaned
+        text _extract_answer() produces. That raw text is what gets persisted
+        via save_session() and handed back later on reopen/refresh. This
+        overwrites the last assistant turn in memory with the clean text so
+        what's stored matches what's actually shown to the user.
+        """
+        if self._memory is None:
+            return
+        history = self._memory.get_all()
+        for i in range(len(history) - 1, -1, -1):
+            if history[i].role == MessageRole.ASSISTANT:
+                history[i] = ChatMessage(role=MessageRole.ASSISTANT, content=clean_text)
+                break
+        self._memory.set(history)
+
     async def chat(self, message: str) -> ChatResponse:
         handler = self._agent.run(user_msg=message, memory=self._memory)
         result = await handler
         clean = _extract_answer(result.response.content or "")
+        self._sanitize_last_assistant_message(clean)
         return ChatResponse(response=clean)
 
     async def chat_stream(self, message: str):
@@ -119,12 +163,13 @@ class Chatbot:
 
             result = await handler
             clean = _extract_answer(raw_deltas)
+            if not clean:
+                clean = "Answer received."
 
-            if clean:
-                yield {"type": "token", "data": {"text": clean}}
-            else:
-                yield {"type": "token", "data": {"text": "Answer received."}}
+            self._sanitize_last_assistant_message(clean)
 
+            yield {"type": "token", "data": {"text": clean}}
             yield {"type": "done", "data": {}}
         except Exception as e:
-            yield {"type": "error", "data": {"text": str(e)}}
+            print(f"[chatbot.chat_stream] raw error: {e}")  
+            yield {"type": "error", "data": {"text": friendly_error_message(e)}}

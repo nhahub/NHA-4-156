@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from llm.chatbot import Chatbot
+from llm.chatbot import Chatbot, friendly_error_message
 from rag.engine import load_repo_index  
 from api.database import get_repo_status, get_session, save_session, delete_session
 from llama_index.core.llms import ChatMessage, MessageRole
@@ -24,6 +24,18 @@ class ChatResponse(BaseModel):
     session_id: str
 
 VALID_PROVIDERS = {"groq", "openrouter"}
+
+
+def _error_status_code(e: Exception) -> int:
+    text = str(e)
+    lower = text.lower()
+    if "rate_limit_exceeded" in lower or "rate limit" in lower or "429" in text:
+        return 429
+    if "401" in text or "unauthorized" in lower or "invalid api key" in lower:
+        return 401
+    if "503" in text or "service unavailable" in lower:
+        return 503
+    return 500
 
 
 async def _get_or_create_chatbot(repo_id: str, session_id: str, provider: str, model_name: str, app_state):
@@ -78,7 +90,8 @@ async def chat(repo_id: str, request: Request, payload: ChatRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error occurred while processing chat message: {str(e)}")
+        print(f"[chat] raw error: {e}")  # full detail stays in server logs
+        raise HTTPException(status_code=_error_status_code(e), detail=friendly_error_message(e))
 
 
 @router.post("/chat/{repo_id}/stream")
@@ -105,7 +118,8 @@ async def chat_stream(repo_id: str, request: Request, payload: ChatRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error occurred while processing chat message: {str(e)}")
+        print(f"[chat_stream] raw error: {e}")  # full detail stays in server logs
+        raise HTTPException(status_code=_error_status_code(e), detail=friendly_error_message(e))
     
 @router.delete("/chat/{session_id}")
 async def delete_chat_session(session_id: str, request: Request):
