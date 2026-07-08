@@ -4,6 +4,7 @@ import { startCharts, getCharts, startDocs, getDocs } from "../lib/api";
 import Navbar from "../components/Navbar";
 import Starfield from "../components/Starfield";
 import FloatingWords from "../components/FloatingWords";
+import ChatWindow from "../components/ChatWindow";
 
 function buildWordPool(charts) {
   if (!charts) return [];
@@ -248,28 +249,45 @@ function DocsSection({ repoId }) {
 
 function PieChart({ labels, values, colors }) {
   const size = 180, cx = 90, cy = 90, r = 70, innerR = 42;
-  let startAngle = -Math.PI / 2;
 
-  const slices = labels.map((label, i) => {
-    const angle = (values[i] / 100) * 2 * Math.PI;
-    const endAngle = startAngle + angle;
-    const x1 = cx + r * Math.cos(startAngle), y1 = cy + r * Math.sin(startAngle);
-    const x2 = cx + r * Math.cos(endAngle),   y2 = cy + r * Math.sin(endAngle);
-    const ix1 = cx + innerR * Math.cos(startAngle), iy1 = cy + innerR * Math.sin(startAngle);
-    const ix2 = cx + innerR * Math.cos(endAngle),   iy2 = cy + innerR * Math.sin(endAngle);
-    const large = angle > Math.PI ? 1 : 0;
-    const path = `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${innerR} ${innerR} 0 ${large} 0 ${ix1} ${iy1} Z`;
-    const slice = { path, color: colors[i], label, value: values[i] };
-    startAngle = endAngle;
-    return slice;
-  });
+  const slices = [];
+
+  if (labels.length === 1) {
+    slices.push({
+      circle: true,
+      color: colors[0],
+      label: labels[0],
+      value: values[0],
+    });
+  } else {
+    let startAngle = -Math.PI / 2;
+    labels.forEach((label, i) => {
+      const angle = (values[i] / 100) * 2 * Math.PI;
+      const endAngle = startAngle + angle;
+      const x1 = cx + r * Math.cos(startAngle), y1 = cy + r * Math.sin(startAngle);
+      const x2 = cx + r * Math.cos(endAngle),   y2 = cy + r * Math.sin(endAngle);
+      const ix1 = cx + innerR * Math.cos(startAngle), iy1 = cy + innerR * Math.sin(startAngle);
+      const ix2 = cx + innerR * Math.cos(endAngle),   iy2 = cy + innerR * Math.sin(endAngle);
+      const large = angle > Math.PI ? 1 : 0;
+      const path = `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${innerR} ${innerR} 0 ${large} 0 ${ix1} ${iy1} Z`;
+      slices.push({ path, color: colors[i], label, value: values[i] });
+      startAngle = endAngle;
+    });
+  }
 
   return (
     <div className="flex flex-col items-center gap-6">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {slices.map((s, i) => (
-          <path key={i} d={s.path} fill={s.color} opacity={0.9}><title>{s.label}: {s.value}%</title></path>
-        ))}
+        {slices.map((s, i) =>
+          s.circle ? (
+            <g key={i}>
+              <circle cx={cx} cy={cy} r={r} fill={s.color} opacity={0.9} />
+              <circle cx={cx} cy={cy} r={innerR} fill="#04060f" />
+            </g>
+          ) : (
+            <path key={i} d={s.path} fill={s.color} opacity={0.9}><title>{s.label}: {s.value}%</title></path>
+          )
+        )}
         <text x={cx} y={cy - 6} textAnchor="middle" fill="#eef1ff" fontSize="11" fontFamily="monospace">languages</text>
         <text x={cx} y={cy + 10} textAnchor="middle" fill="#eef1ff99" fontSize="10" fontFamily="monospace">{labels.length} total</text>
       </svg>
@@ -282,6 +300,7 @@ function PieChart({ labels, values, colors }) {
           </div>
         ))}
       </div>
+      <ChatWindow repoId={repoId} />
     </div>
   );
 }
@@ -469,6 +488,7 @@ export default function RepoIllustrationPage() {
         <DocsSection repoId={repoId} />
 
       </div>
+      <ChatWindow repoId={repoId} />
     </div>
   );
 }
