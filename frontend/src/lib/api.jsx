@@ -17,7 +17,7 @@ export async function getRepoStatus(repoId) {
 }
 
 export async function assistRepo(query) {
-  return null; // for now bs
+  return null;
 }
 
 export async function startCharts(repoId) {
@@ -49,5 +49,46 @@ export async function startDocs(repoId) {
 export async function getDocs(repoId) {
   const res = await fetch(`${API_BASE}/repos/${repoId}/docs`);
   if (!res.ok) throw new Error(`Docs fetch failed: ${res.status}`);
+  return res.json();
+}
+
+export async function streamChatMessage(repoId, message, sessionId, provider = "groq", onEvent) {
+  const res = await fetch(`${API_BASE}/repos/chat/${repoId}/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, session_id: sessionId, provider }),
+  });
+
+  if (!res.ok) throw new Error(`Stream request failed: ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      try {
+        const payload = JSON.parse(line.slice(6));
+        onEvent(payload.type, payload);
+      } catch {}
+    }
+  }
+}
+
+export async function getChatHistory(sessionId) {
+  const res = await fetch(`${API_BASE}/repos/chat/${sessionId}/history`);
+  if (!res.ok) throw new Error(`History fetch failed: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteChatSession(sessionId) {
+  const res = await fetch(`${API_BASE}/repos/chat/${sessionId}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`Delete session failed: ${res.status}`);
   return res.json();
 }
