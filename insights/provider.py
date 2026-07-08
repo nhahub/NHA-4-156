@@ -17,17 +17,19 @@ CHARTS_SYSTEM_PROMPT = (
     "to answer accurately.\n\n"
     "Your FINAL message must contain ONLY a single valid JSON object with exactly these keys:\n\n"
     "{\n"
+    "  \"summary\": \"One clear paragraph describing what this project does and how it works.\",\n"
     "  \"language_breakdown\": {\"Python\": 65, \"JavaScript\": 30, \"HTML\": 5},\n"
     "  \"dependencies\": {\"python\": [\"fastapi\", \"pydantic\"], \"javascript\": [\"react\"]}\n"
     "}\n\n"
     "Rules:\n"
+    "- summary: 3-5 sentences, plain language, what the project does and its main components\n"
     "- language_breakdown: language names as keys, integer percentages as values, must sum to 100\n"
     "- dependencies: ecosystem name (lowercase) as keys, list of package name strings as values, no version numbers\n"
     "- only include what you actually found in the files"
 )
 
 CHARTS_TASK_MESSAGE = (
-    "Explore this repository and return the JSON object with language_breakdown and dependencies. "
+    "Explore this repository and return the JSON object with summary, language_breakdown and dependencies. "
     "Your final reply must be ONLY the JSON object, nothing else."
 )
 
@@ -194,10 +196,21 @@ async def build_repo_insights(repo_id: str, repo_url: str, provider: str = "groq
             if isinstance(packages, list):
                 dependencies[str(ecosystem).lower()] = [str(p) for p in packages]
 
+    summary = str(parsed.get("summary", "")).strip()
+
     contributors = fetch_contributors(repo_url)
 
+    # static analysis + github metrics + health score
+    owner_repo = _parse_github_owner_repo(repo_url)
+    analysis = {}
+    if owner_repo:
+        from insights.analyzer import analyze_repo
+        analysis = analyze_repo(repo_id, owner_repo[0], owner_repo[1], len(contributors))
+
     return {
+        "summary":            summary,
         "language_breakdown": language_breakdown,
         "dependencies":       dependencies,
         "contributors":       contributors,
+        "analysis":           analysis,
     }
