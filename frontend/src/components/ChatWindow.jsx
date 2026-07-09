@@ -146,7 +146,7 @@ export default function ChatWindow({ repoId }) {
     }
 
     try {
-      await streamChatMessage(repoId, text, sessionId, "groq", (type, data) => {
+      await streamChatMessage(repoId, text, sessionId, "anthropic", (type, data) => {
         switch (type) {
           case "thinking_delta":
             appendThinking(data.text);
