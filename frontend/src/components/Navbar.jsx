@@ -113,7 +113,7 @@ function Stardust({ delay, count = 16 }) {
   );
 }
 
-export default function Navbar({ communityUrl = "#" }) {
+export default function Navbar({ communityUrl = "https://code-book-e6e0cdeke2cfgkgz.polandcentral-01.azurewebsites.net/HTML/HomePage.html" }) {
   const HOLD = 0.45;
   const FALL = 0.55;
   const SETTLE = 0.25;
