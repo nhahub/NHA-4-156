@@ -9,7 +9,7 @@ from rag.insight_generator import generate_insight
 
 router = APIRouter()
 
-VALID_PROVIDERS = {"groq", "openrouter"}
+VALID_PROVIDERS = {"groq", "openrouter", "anthropic"}
 
 
 class InsightRequest(BaseModel):

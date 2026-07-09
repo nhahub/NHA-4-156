@@ -21,6 +21,12 @@ def llm_provider(provider: str = "openrouter", model_name: str = None, temperatu
         model = model_name or os.getenv("OPENROUTER_MODEL") or "deepseek/deepseek-v3-base:free"
         return OpenRouter(model=model, api_key=os.getenv("OPENROUTER_API_KEY"), temperature=temperature, max_tokens=8192, **kwargs)
 
+    elif provider == "anthropic":
+        from llama_index.llms.anthropic import Anthropic
+        model = model_name or os.getenv("ANTHROPIC_MODEL") or "claude-sonnet-4-6"
+        kwargs.pop("is_function_calling_model", None)
+        return Anthropic(model=model, api_key=os.getenv("ANTHROPIC_API_KEY"), temperature=temperature, max_tokens=8192, **kwargs)
+
     raise ValueError(f"Unsupported provider: {provider}")
 
 

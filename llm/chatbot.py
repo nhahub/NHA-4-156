@@ -132,7 +132,7 @@ class Chatbot:
         self._memory.set(history)
 
     async def chat(self, message: str) -> ChatResponse:
-        handler = self._agent.run(user_msg=message, memory=self._memory)
+        handler = self._agent.run(user_msg=message, memory=self._memory, max_iterations=30)
         result = await handler
         clean = _extract_answer(result.response.content or "")
         self._sanitize_last_assistant_message(clean)
@@ -147,7 +147,7 @@ class Chatbot:
         yield {"type": "thinking", "data": {}}
 
         try:
-            handler = self._agent.run(user_msg=message, memory=self._memory)
+            handler = self._agent.run(user_msg=message, memory=self._memory, max_iterations=30)
             raw_deltas = ""
 
             async for event in handler.stream_events():

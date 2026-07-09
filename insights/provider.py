@@ -167,7 +167,7 @@ def fetch_contributors(repo_url: str) -> list:
         return []
 
 
-async def build_repo_insights(repo_id: str, repo_url: str, provider: str = "groq", model_name: str = None) -> dict:
+async def build_repo_insights(repo_id: str, repo_url: str, provider: str = "anthropic", model_name: str = None) -> dict:
     repo_path = Path("data/processed") / repo_id
 
     llm = llm_provider(provider=provider, model_name=model_name, is_function_calling_model=False)
@@ -181,7 +181,7 @@ async def build_repo_insights(repo_id: str, repo_url: str, provider: str = "groq
         verbose=True,
     )
 
-    handler = agent.run(user_msg=CHARTS_TASK_MESSAGE)
+    handler = agent.run(user_msg=CHARTS_TASK_MESSAGE, max_iterations=30)
     result = await handler
     raw = result.response.content or ""
 
