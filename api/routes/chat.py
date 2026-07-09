@@ -140,7 +140,8 @@ async def delete_chat_session(session_id: str, request: Request):
 async def get_chat_history(session_id: str):
     raw_history = get_session(session_id)
     if raw_history is None:
-            raise HTTPException(status_code=404, detail="Session not found")
+        return {"session_id": session_id, "history": []}
+
     try:
         history = [{"role": msg["role"], "content": msg["content"]} for msg in raw_history]
         return {"session_id": session_id, "history": history}
