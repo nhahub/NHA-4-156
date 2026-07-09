@@ -9,7 +9,7 @@ from insights.document_generator import generate_docs
 
 router = APIRouter()
 
-VALID_PROVIDERS = {"groq", "openrouter"}
+VALID_PROVIDERS = {"groq", "openrouter", "anthropic"}
 
 
 class DocsRequest(BaseModel):

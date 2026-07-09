@@ -10,7 +10,7 @@ from insights.visualizer import build_chart_data
 
 router = APIRouter()
 
-VALID_PROVIDERS = {"groq", "openrouter"}
+VALID_PROVIDERS = {"groq", "openrouter", "anthropic"}
 
 
 class ChartsRequest(BaseModel):

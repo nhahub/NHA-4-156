@@ -24,7 +24,7 @@ export async function startCharts(repoId) {
   const res = await fetch(`${API_BASE}/repos/${repoId}/charts`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ provider: "groq" }),
+    body: JSON.stringify({ provider: "anthropic" }),
   });
   if (!res.ok) throw new Error(`Charts request failed: ${res.status}`);
   return res.json();
@@ -40,7 +40,7 @@ export async function startDocs(repoId) {
   const res = await fetch(`${API_BASE}/repos/${repoId}/docs`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ provider: "groq" }),
+    body: JSON.stringify({ provider: "anthropic" }),
   });
   if (!res.ok) throw new Error(`Docs request failed: ${res.status}`);
   return res.json();
@@ -52,7 +52,7 @@ export async function getDocs(repoId) {
   return res.json();
 }
 
-export async function streamChatMessage(repoId, message, sessionId, provider = "groq", onEvent) {
+export async function streamChatMessage(repoId, message, sessionId, provider = "anthropic", onEvent) {
   const res = await fetch(`${API_BASE}/repos/chat/${repoId}/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -64,6 +64,7 @@ export async function streamChatMessage(repoId, message, sessionId, provider = "
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let currentEvent = "message";
 
   while (true) {
     const { done, value } = await reader.read();
@@ -71,12 +72,18 @@ export async function streamChatMessage(repoId, message, sessionId, provider = "
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
     buffer = lines.pop();
+
     for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      try {
-        const payload = JSON.parse(line.slice(6));
-        onEvent(payload.type, payload);
-      } catch {}
+      if (line.startsWith("event: ")) {
+        currentEvent = line.slice(7).trim();
+      } else if (line.startsWith("data: ")) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          onEvent(currentEvent, data);
+        } catch {}
+      } else if (line === "") {
+        currentEvent = "message";
+      }
     }
   }
 }

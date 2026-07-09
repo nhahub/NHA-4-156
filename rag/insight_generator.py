@@ -77,7 +77,7 @@ async def generate_insight(
         verbose=True,
     )
 
-    handler = agent.run(user_msg=INSIGHT_TASK_MESSAGE)
+    handler = agent.run(user_msg=INSIGHT_TASK_MESSAGE, max_iterations=30)
     result = await handler
     raw = result.response.content or ""
 

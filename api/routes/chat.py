@@ -23,7 +23,7 @@ class ChatResponse(BaseModel):
     response: str
     session_id: str
 
-VALID_PROVIDERS = {"groq", "openrouter"}
+VALID_PROVIDERS = {"groq", "openrouter", "anthropic"}
 
 
 def _error_status_code(e: Exception) -> int:
