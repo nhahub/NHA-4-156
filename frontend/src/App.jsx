@@ -62,7 +62,7 @@ export default function App() {
     <div className="relative min-h-screen w-full flex flex-col items-center justify-center px-4 py-24">
       <Starfield />
       <FloatingWords />
-      <Navbar communityUrl="#" />
+      <Navbar communityUrl="https://code-book-e6e0cdeke2cfgkgz.polandcentral-01.azurewebsites.net/HTML/HomePage.html" />
 
       <motion.div
         initial={{ opacity: 0, y: 28, scale: 0.97 }}
