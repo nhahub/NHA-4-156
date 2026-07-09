@@ -58,10 +58,17 @@ class RepositoryPreprocessor:
         proc_dest = self.output_folder / repo_name
         raw_dest.parent.mkdir(parents=True, exist_ok=True)
 
-        #gdeda
         if not raw_dest.exists():
             print(f"Cloning '{url}'")
-            subprocess.run(["git", "clone", url, str(raw_dest)], check=True)
+            try:
+                subprocess.run(
+                    ["git", "clone", url, str(raw_dest)],
+                    check=True, capture_output=True, text=True, timeout=60,
+                )
+            except subprocess.CalledProcessError:
+                raise RuntimeError(
+                    f"Failed to clone '{url}'. Check that the URL is correct and the repository is public."
+                )
             self._sync_processed(raw_dest, proc_dest)
             return str(proc_dest), True 
         
