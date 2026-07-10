@@ -53,31 +53,29 @@ All ML models run locally (embedding + reranking). LLM inference is 100% cloud A
 
 ## Quick Start
 
-### 1. Clone and set up the backend
+### Option A — Docker (recommended)
 
 ```bash
-git clone <repo-url> && cd Repo-Illustrator
+cp .env.example .env   # edit with your API keys
+docker compose up --build
+```
+
+The frontend and backend are served on `http://localhost:8000`. The first build downloads ML models (~500MB) into the image.
+
+### Option B — Local dev (backend + frontend separately)
+
+#### 1. Backend
+
+```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env   # edit with your API keys
+uvicorn api.main:app
 ```
 
-### 2. Configure environment
+API at `http://localhost:8000`, docs at `http://localhost:8000/docs`.
 
-```bash
-cp .env.example .env   # or create .env manually
-```
-
-Required variables (see [Environment Variables](#environment-variables) below).
-
-### 3. Start the backend
-
-```bash
-uvicorn api.main:app --reload --reload-exclude "data/*" --reload-exclude "chroma_db/*"
-```
-
-The API is available at `http://localhost:8000`. Interactive docs at `http://localhost:8000/docs`.
-
-### 4. Set up and run the frontend
+#### 2. Frontend
 
 ```bash
 cd frontend
@@ -85,9 +83,7 @@ npm install
 npm run dev
 ```
 
-The frontend runs at `http://localhost:5173` and connects to the backend at `http://localhost:8000`.
-
-> Set `VITE_API_BASE_URL` in `frontend/.env` to change the backend URL.
+Frontend at `http://localhost:5173`, expects the backend at `http://localhost:8000`. Set `VITE_API_BASE_URL` in `frontend/.env` to change the backend URL.
 
 ## Environment Variables
 
@@ -98,12 +94,8 @@ The frontend runs at `http://localhost:5173` and connects to the backend at `htt
 | `ANTHROPIC_API_KEY` | Yes\* | — | Anthropic API key |
 | `GITHUB_TOKEN` | No | — | GitHub token (increases rate limit to 5000 req/hr for contributor stats; also enables private repo cloning) |
 | `GROQ_MODEL` | No | `llama3-70b-8192` | Default Groq model |
-| `OPENROUTER_MODEL` | No | `deepseek/deepseek-v4-flash:free` | Default OpenRouter model |
+| `OPENROUTER_MODEL` | No | `anthropic/claude-haiku-4.5` | Default OpenRouter model |
 | `ANTHROPIC_MODEL` | No | `claude-haiku-4-5-20251001` | Default Anthropic model |
-
-| `EMBEDDING_PROVIDER` | No | `local` | Embedding provider: `local` or `modal` |
-| `MODAL_TOKEN_ID` | For modal | — | Modal token ID (for GPU-accelerated embeddings) |
-| `MODAL_TOKEN_SECRET` | For modal | — | Modal token secret |
 
 \*At least one LLM provider key is required.
 
@@ -201,12 +193,48 @@ Full request/response schemas are in the interactive docs at `/docs` or in [`doc
 │       └── lib/
 │           ├── api.jsx           # API client (all endpoints)
 │           └── session.jsx       # Session ID persistence
+├── static/                 # built React app (Docker only, gitignored)
 ├── data/                   # (gitignored) cloned & processed repos
 ├── chroma_db/              # (gitignored) vector index
 ├── repo_illustrator.db     # (gitignored) SQLite DB
+├── Dockerfile              # multi-stage build (frontend + backend)
+├── docker-compose.yml      # single service with persisted volumes
+├── .Dockerignore
 ├── requirements.txt
+├── .env.example
 └── docs/api.md             # API documentation
 ```
+
+## Docker
+
+### Build & Run
+
+```bash
+docker compose up --build
+```
+
+The container serves everything on port `8000` — the built React frontend is served as static files by the FastAPI backend, so there's only one port to expose.
+
+### Multi-stage build
+
+The `Dockerfile` does two things at build time:
+1. **Stage 1** — builds the React app with `node:20-alpine`
+2. **Stage 2** — installs Python deps, pre-downloads the embedding and reranker models into the image (so the container starts fast), copies backend + built frontend
+
+### Persisted volumes
+
+```yaml
+volumes:
+  - ./data:/app/data              # cloned & processed repos
+  - ./chroma_db:/app/chroma_db    # vector embeddings
+  - ./repo_illustrator.db:/app/repo_illustrator.db  # SQLite DB
+```
+
+Without these volumes, every `docker compose down` wipes all ingested repos and embeddings.
+
+### Important: first build is slow
+
+The sentence-transformers models (`nomic-embed-text-v1.5` + `cross-encoder/ms-marco-MiniLM-L-6-v2`) are downloaded during `docker build`, which adds ~500MB to the image. Subsequent builds use Docker's layer cache unless `requirements.txt` or the model versions change.
 
 ## Troubleshooting
 
@@ -221,44 +249,6 @@ The embedding model (`nomic-embed-text-v1.5`) detects GPU automatically. On CPU-
 ### Chat response is slow
 
 The ReAct agent uses tool calls and multiple LLM rounds. For faster responses, use streaming (`POST /chat/{repo_id}/stream`) which shows thinking in real time.
-
-## Embedding Providers
-
-Embeddings can be generated locally (CPU/GPU) or offloaded to Modal's serverless GPU infrastructure — switched at runtime via `EMBEDDING_PROVIDER`.
-
-### Local (default)
-
-Runs `nomic-embed-text-v1.5` via sentence-transformers on the machine's CPU or CUDA GPU. Set `EMBEDDING_PROVIDER=local` or leave unset.
-
-### Modal (GPU-accelerated)
-
-Offloads embedding to a Modal GPU function (T4). Useful on CPU-only machines (e.g. Oracle Free Tier) where local embedding is slow.
-
-**Setup:**
-
-```bash
-# 1. Install Modal CLI
-pip install modal
-
-# 2. Authenticate
-modal token set
-
-# 3. Deploy the embedding function once
-modal deploy embeddings/modal_app.py
-
-# 4. Set environment variables
-EMBEDDING_PROVIDER=modal
-MODAL_TOKEN_ID=your-token-id
-MODAL_TOKEN_SECRET=your-token-secret
-```
-
-The function keeps one GPU warm (`keep_warm=1`) and stays alive for 5 minutes of idle before spinning down. Cold starts take ~10-15s (model download + load); subsequent calls are instant.
-
-To update the deployment after code changes:
-
-```bash
-modal deploy embeddings/modal_app.py
-```
 
 ## License
 
