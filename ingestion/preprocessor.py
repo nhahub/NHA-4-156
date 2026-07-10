@@ -52,28 +52,44 @@ class RepositoryPreprocessor:
             return f"{parts[0]}__{repo}".lower().replace('-', '_')
         return re.sub(r'[^a-zA-Z0-9]', '_', path.replace('.git', '')).lower()
 
+    def _authenticated_url(self, url: str) -> str:
+        """Inject GITHUB_TOKEN into the clone URL so private repos work too."""
+        import os
+        token = os.getenv("GITHUB_TOKEN")
+        if token and url.startswith("https://github.com/"):
+            return url.replace("https://github.com/", f"https://{token}@github.com/")
+        return url
+
     def _prepare_remote(self, url: str) -> tuple[str, bool]:
         repo_name = self.generate_repo_id(url)
-        raw_dest = Path("data/raw") / repo_name 
+        raw_dest = Path("data/raw") / repo_name
         proc_dest = self.output_folder / repo_name
         raw_dest.parent.mkdir(parents=True, exist_ok=True)
+
+        auth_url = self._authenticated_url(url)
 
         if not raw_dest.exists():
             print(f"Cloning '{url}'")
             try:
                 subprocess.run(
-                    ["git", "clone", url, str(raw_dest)],
+                    ["git", "clone", auth_url, str(raw_dest)],
                     check=True, capture_output=True, text=True, timeout=60,
                 )
-            except subprocess.CalledProcessError:
-                raise RuntimeError(
-                    f"Failed to clone '{url}'. Check that the URL is correct and the repository is public."
-                )
+            except subprocess.CalledProcessError as e:
+                stderr = (e.stderr or "").lower()
+                if "repository not found" in stderr or "could not read username" in stderr or "authentication failed" in stderr:
+                    raise RuntimeError(
+                        "This repository is private or does not exist. "
+                        "If it's a private repo you have access to, make sure GITHUB_TOKEN "
+                        "in your .env has 'repo' scope and belongs to an account that's a "
+                        "collaborator on it."
+                    )
+                raise RuntimeError(f"Failed to clone '{url}': {e.stderr or 'unknown git error'}")
             self._sync_processed(raw_dest, proc_dest)
             return str(proc_dest), True 
         
         # mawgoda
-        remote_hash = self._get_remote_head(url)
+        remote_hash = self._get_remote_head(auth_url)
         local_hash = self._get_local_head(raw_dest)
 
         if remote_hash and local_hash and remote_hash == local_hash:
