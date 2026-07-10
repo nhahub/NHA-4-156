@@ -41,7 +41,11 @@ DOCS_SYSTEM_PROMPT = (
     "an endpoint of this repo). If this repo is frontend-only with no backend routes of its own, "
     "return an empty endpoints array — that is expected and correct.\n"
     "- Never return an empty functions array if the repository has any source code files. "
-    "Every repo has at least some functions or components worth documenting.\n"
+    "Every repo has at least some functions or components worth documenting. "
+    "HOWEVER: if your tools report the repository is empty, inaccessible, or you cannot read any "
+    "actual file content, do NOT invent or guess functions — return empty arrays instead and this "
+    "is the correct, expected response in that case. Never fabricate file names, function names, "
+    "or code you did not actually read.\n"
     "- Base everything only on what you actually read in the files."
 )
 
@@ -69,6 +73,12 @@ def _parse_docs_json(raw_text: str) -> dict:
 
 async def generate_docs(repo_id: str, provider: str = "anthropic", model_name: str = None) -> dict:
     repo_path = Path("data/processed") / repo_id
+
+    if not repo_path.exists() or not any(repo_path.iterdir()):
+        raise RuntimeError(
+            f"Repository files not found on disk for '{repo_id}'. "
+            "Ingestion may have failed silently (e.g. private repo without access) — re-ingest and check the status."
+        )
 
     llm = llm_provider(provider=provider, model_name=model_name, is_function_calling_model=False)
     tools = make_file_tools(repo_path)
