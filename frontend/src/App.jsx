@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import Starfield from "./components/Starfield";
@@ -6,7 +6,7 @@ import FloatingWords from "./components/FloatingWords";
 import Navbar from "./components/Navbar";
 import SearchBar from "./components/SearchBar";
 import ModeToggle from "./components/ModeToggle";
-import { startIngestion, getRepoStatus, assistRepo } from "./lib/api";
+import { startIngestion, getRepoStatus, assistRepo, stopIngestion } from "./lib/api";
 
 const TAGLINES = {
   illustrate: "Give me a repo URL and I'll map its architecture into a living constellation.",
@@ -20,31 +20,54 @@ export default function App() {
   const [result, setResult] = useState(null);
   const navigate = useNavigate();
 
+  // Track the in-flight ingestion so the Stop button and poller can reach them.
+  const repoIdRef = useRef(null);
+  const intervalRef = useRef(null);
+  const cancellingRef = useRef(false);
+
+  const stopPolling = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
   const handleSubmit = async (value) => {
     setLoading(true);
     setError(null);
     setResult(null);
+    cancellingRef.current = false;
     try {
       if (mode === "illustrate") {
         const { repo_id } = await startIngestion(value);
+        repoIdRef.current = repo_id;
 
-        const interval = setInterval(async () => {
+        intervalRef.current = setInterval(async () => {
           try {
             const { status } = await getRepoStatus(repo_id);
             if (status === "ready") {
-              clearInterval(interval);
+              stopPolling();
               setLoading(false);
               navigate(`/repo/${repo_id}/illustration`);
+            } else if (status === "cancelling") {
+              // stop was requested, cleanup is in progress on the backend
             } else if (status.startsWith("error")) {
-              clearInterval(interval);
+              stopPolling();
               setLoading(false);
               setError(status);
             }
-            // polling until done
+            // otherwise still processing, keep polling
           } catch (err) {
-            clearInterval(interval);
+            stopPolling();
             setLoading(false);
-            setError(err instanceof Error ? err.message : "Status check failed.");
+            if (cancellingRef.current) {
+              // Backend deletes the repo record once cancellation cleanup
+              // finishes, so a 404 here means the stop succeeded.
+              setError(null);
+              setResult("Ingestion stopped. The cloned repo and any partial data were cleaned up.");
+            } else {
+              setError(err instanceof Error ? err.message : "Status check failed.");
+            }
           }
         }, 2000);
       } else {
@@ -55,6 +78,20 @@ export default function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setLoading(false);
+    }
+  };
+
+  const handleStop = async () => {
+    const repoId = repoIdRef.current;
+    if (!repoId) return;
+    cancellingRef.current = true;
+    try {
+      await stopIngestion(repoId);
+      // Keep polling (it's still running) so we pick up "cancelling" ->
+      // the eventual 404 that confirms cleanup finished.
+    } catch (err) {
+      cancellingRef.current = false;
+      setError(err instanceof Error ? err.message : "Failed to stop ingestion.");
     }
   };
 
@@ -90,7 +127,7 @@ export default function App() {
         </div>
 
         <ModeToggle mode={mode} onChange={setMode} />
-        <SearchBar mode={mode} onSubmit={handleSubmit} loading={loading} />
+        <SearchBar mode={mode} onSubmit={handleSubmit} onStop={handleStop} loading={loading} />
 
         {error && (
           <p className="font-mono text-sm text-red-400 max-w-xl">{error}</p>

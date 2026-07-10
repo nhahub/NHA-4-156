@@ -17,6 +17,14 @@ export async function getRepoStatus(repoId) {
   return res.json();
 }
 
+export async function stopIngestion(repoId) {
+  const res = await fetch(`${API_BASE}/repos/${repoId}/stop`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error(`Stop request failed: ${res.status}`);
+  return res.json();
+}
+
 export async function assistRepo(query) {
   return null;
 }
