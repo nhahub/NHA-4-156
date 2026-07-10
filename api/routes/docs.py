@@ -13,7 +13,7 @@ VALID_PROVIDERS = {"groq", "openrouter", "anthropic"}
 
 
 class DocsRequest(BaseModel):
-    provider: Optional[str] = "groq"
+    provider: Optional[str] = "openrouter"
     model_name: Optional[str] = None
 
 
@@ -52,7 +52,7 @@ async def start_docs(repo_id: str, background_tasks: BackgroundTasks, payload: D
         }
 
     save_docs_status(repo_id, "processing")
-    background_tasks.add_task(_run_docs_job, repo_id, payload.provider or "groq", payload.model_name)
+    background_tasks.add_task(_run_docs_job, repo_id, payload.provider or "openrouter", payload.model_name)
 
     return {
         "repo_id": repo_id,

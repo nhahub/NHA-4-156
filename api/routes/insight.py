@@ -13,7 +13,7 @@ VALID_PROVIDERS = {"groq", "openrouter", "anthropic"}
 
 
 class InsightRequest(BaseModel):
-    provider: Optional[str] = "groq"
+    provider: Optional[str] = "openrouter"
     model_name: Optional[str] = None
 
 

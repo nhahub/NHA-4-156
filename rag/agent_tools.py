@@ -18,7 +18,7 @@ def llm_provider(provider: str = "openrouter", model_name: str = None, temperatu
 
     elif provider == "openrouter":
         from llama_index.llms.openrouter import OpenRouter
-        model = model_name or os.getenv("OPENROUTER_MODEL") or "deepseek/deepseek-v3-base:free"
+        model = model_name or os.getenv("OPENROUTER_MODEL") or "anthropic/claude-haiku-4.5"
         return OpenRouter(model=model, api_key=os.getenv("OPENROUTER_API_KEY"), temperature=temperature, max_tokens=8192, **kwargs)
 
     elif provider == "anthropic":

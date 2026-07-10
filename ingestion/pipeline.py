@@ -2,7 +2,7 @@ import gc
 import os
 import time
 
-from embeddings.embedder import RepoEmbedder
+from embeddings.provider import get_embedder
 from ingestion.preprocessor import RepositoryPreprocessor
 from ingestion.loader import RepositoryLoader
 from ingestion.chunker import RepositoryChunker
@@ -26,7 +26,8 @@ class IngestionPipeline:
     def _configure_settings(self):
         Settings.chunk_size = 512
         Settings.chunk_overlap = 50
-        Settings.embed_model = RepoEmbedder().get_embed_model()
+        provider = os.getenv("EMBEDDING_PROVIDER", "local")
+        Settings.embed_model = get_embedder(provider=provider)
 
     def run(self, repo_url_or_path: str, repo_id: str) -> tuple[VectorStoreIndex, bool]:
         repo_path, was_updated = self.preprocessor.prepare(repo_url_or_path)
