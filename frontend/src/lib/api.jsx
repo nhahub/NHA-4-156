@@ -25,7 +25,7 @@ export async function startCharts(repoId) {
   const res = await fetch(`${API_BASE}/repos/${repoId}/charts`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ provider: "anthropic" }),
+    body: JSON.stringify({ provider: "openrouter" }),
   });
   if (!res.ok) throw new Error(`Charts request failed: ${res.status}`);
   return res.json();
@@ -41,7 +41,7 @@ export async function startDocs(repoId) {
   const res = await fetch(`${API_BASE}/repos/${repoId}/docs`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ provider: "anthropic" }),
+    body: JSON.stringify({ provider: "openrouter" }),
   });
   if (!res.ok) throw new Error(`Docs request failed: ${res.status}`);
   return res.json();
@@ -53,7 +53,7 @@ export async function getDocs(repoId) {
   return res.json();
 }
 
-export async function streamChatMessage(repoId, message, sessionId, provider = "anthropic", onEvent) {
+export async function streamChatMessage(repoId, message, sessionId, provider = "openrouter", onEvent) {
   const res = await fetch(`${API_BASE}/repos/chat/${repoId}/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

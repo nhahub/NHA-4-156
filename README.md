@@ -101,6 +101,10 @@ The frontend runs at `http://localhost:5173` and connects to the backend at `htt
 | `OPENROUTER_MODEL` | No | `deepseek/deepseek-v4-flash:free` | Default OpenRouter model |
 | `ANTHROPIC_MODEL` | No | `claude-haiku-4-5-20251001` | Default Anthropic model |
 
+| `EMBEDDING_PROVIDER` | No | `local` | Embedding provider: `local` or `modal` |
+| `MODAL_TOKEN_ID` | For modal | — | Modal token ID (for GPU-accelerated embeddings) |
+| `MODAL_TOKEN_SECRET` | For modal | — | Modal token secret |
+
 \*At least one LLM provider key is required.
 
 ## API Endpoints
@@ -217,6 +221,44 @@ The embedding model (`nomic-embed-text-v1.5`) detects GPU automatically. On CPU-
 ### Chat response is slow
 
 The ReAct agent uses tool calls and multiple LLM rounds. For faster responses, use streaming (`POST /chat/{repo_id}/stream`) which shows thinking in real time.
+
+## Embedding Providers
+
+Embeddings can be generated locally (CPU/GPU) or offloaded to Modal's serverless GPU infrastructure — switched at runtime via `EMBEDDING_PROVIDER`.
+
+### Local (default)
+
+Runs `nomic-embed-text-v1.5` via sentence-transformers on the machine's CPU or CUDA GPU. Set `EMBEDDING_PROVIDER=local` or leave unset.
+
+### Modal (GPU-accelerated)
+
+Offloads embedding to a Modal GPU function (T4). Useful on CPU-only machines (e.g. Oracle Free Tier) where local embedding is slow.
+
+**Setup:**
+
+```bash
+# 1. Install Modal CLI
+pip install modal
+
+# 2. Authenticate
+modal token set
+
+# 3. Deploy the embedding function once
+modal deploy embeddings/modal_app.py
+
+# 4. Set environment variables
+EMBEDDING_PROVIDER=modal
+MODAL_TOKEN_ID=your-token-id
+MODAL_TOKEN_SECRET=your-token-secret
+```
+
+The function keeps one GPU warm (`keep_warm=1`) and stays alive for 5 minutes of idle before spinning down. Cold starts take ~10-15s (model download + load); subsequent calls are instant.
+
+To update the deployment after code changes:
+
+```bash
+modal deploy embeddings/modal_app.py
+```
 
 ## License
 

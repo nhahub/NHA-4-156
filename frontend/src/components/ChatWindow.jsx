@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { streamChatMessage, getChatHistory, deleteChatSession } from "../lib/api";
 import { getSessionId, setSessionId, clearSessionId } from "../lib/session";
 
@@ -146,7 +148,7 @@ export default function ChatWindow({ repoId }) {
     }
 
     try {
-      await streamChatMessage(repoId, text, sessionId, "anthropic", (type, data) => {
+      await streamChatMessage(repoId, text, sessionId, "openrouter", (type, data) => {
         switch (type) {
           case "thinking_delta":
             appendThinking(data.text);
@@ -255,13 +257,44 @@ export default function ChatWindow({ repoId }) {
                     )}
                     {m.content && (
                       <div
-                        className={`font-mono text-sm px-3 py-2 rounded-xl max-w-[85%] whitespace-pre-wrap ${
+                        className={`px-3 py-2 rounded-xl max-w-[85%] ${
                           m.role === "user"
-                            ? "bg-cyan/20 text-star border border-cyan/30"
-                            : "bg-white/5 text-star/90 border border-white/10"
+                            ? "bg-cyan/20 text-star border border-cyan/30 font-mono text-sm"
+                            : "bg-white/5 text-star/90 border border-white/10 text-sm leading-relaxed"
                         }`}
                       >
-                        {m.content}
+                        {m.role === "user" ? (
+                          m.content
+                        ) : (
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              code({ node, inline, className, children, ...props }) {
+                                if (inline) {
+                                  return <code className="bg-white/10 rounded px-1 py-0.5 text-xs" {...props}>{children}</code>;
+                                }
+                                return (
+                                  <pre className="bg-black/40 rounded-lg p-3 my-2 overflow-x-auto text-xs">
+                                    <code {...props}>{children}</code>
+                                  </pre>
+                                );
+                              },
+                              h1: ({ children }) => <h1 className="text-base font-bold text-star mb-2 mt-3 first:mt-0">{children}</h1>,
+                              h2: ({ children }) => <h2 className="text-sm font-bold text-star mb-1.5 mt-2.5 first:mt-0">{children}</h2>,
+                              h3: ({ children }) => <h3 className="text-sm font-semibold text-star mb-1 mt-2 first:mt-0">{children}</h3>,
+                              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                              ul: ({ children }) => <ul className="list-disc list-inside space-y-0.5 mb-2 last:mb-0">{children}</ul>,
+                              ol: ({ children }) => <ol className="list-decimal list-inside space-y-0.5 mb-2 last:mb-0">{children}</ol>,
+                              li: ({ children }) => <li>{children}</li>,
+                              strong: ({ children }) => <strong className="font-bold text-star">{children}</strong>,
+                              a: ({ href, children }) => <a href={href} className="text-cyan underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+                              hr: () => <hr className="border-white/10 my-3" />,
+                              blockquote: ({ children }) => <blockquote className="border-l-2 border-cyan/40 pl-3 italic text-muted my-2">{children}</blockquote>,
+                            }}
+                          >
+                            {m.content}
+                          </ReactMarkdown>
+                        )}
                       </div>
                     )}
                   </div>

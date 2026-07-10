@@ -32,3 +32,5 @@ tree-sitter-rust
 tree-sitter-ruby
 
 requests
+
+modal

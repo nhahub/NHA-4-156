@@ -14,7 +14,7 @@ VALID_PROVIDERS = {"groq", "openrouter", "anthropic"}
 
 
 class ChartsRequest(BaseModel):
-    provider: Optional[str] = "groq"
+    provider: Optional[str] = "openrouter"
     model_name: Optional[str] = None
 
 
@@ -63,7 +63,7 @@ async def start_charts(repo_id: str, background_tasks: BackgroundTasks, payload:
 
     repo_url = repo_info.get("url", "")
     save_chart_status(repo_id, "processing")
-    background_tasks.add_task(_run_charts_job, repo_id, repo_url, payload.provider or "groq", payload.model_name)
+    background_tasks.add_task(_run_charts_job, repo_id, repo_url, payload.provider or "openrouter", payload.model_name)
 
     return {
         "repo_id": repo_id,
