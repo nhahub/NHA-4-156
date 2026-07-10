@@ -145,37 +145,35 @@ function AnalyticsCard({ analytics }) {
 }
 
 function DocsSection({ repoId }) {
-  const [status, setStatus] = useState("idle");
+  const [status, setStatus] = useState("idle"); // status
   const [docs, setDocs]     = useState(null);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    if (!repoId) return;
+  async function handleGenerate() {
+    setStatus("loading");
     let interval = null;
 
-    async function init() {
-      setStatus("loading");
-      try { await startDocs(repoId); }
-      catch { setStatus("error"); return; }
-
-      interval = setInterval(async () => {
-        try {
-          const data = await getDocs(repoId);
-          if (data.status === "ready") {
-            clearInterval(interval);
-            setDocs(data.docs);
-            setStatus("ready");
-          } else if (data.status.startsWith("error")) {
-            clearInterval(interval);
-            setStatus("error");
-          }
-        } catch { clearInterval(interval); setStatus("error"); }
-      }, 4000);
+    try {
+      await startDocs(repoId);
+    } catch {
+      setStatus("error");
+      return;
     }
 
-    init();
-    return () => clearInterval(interval);
-  }, [repoId]);
+    interval = setInterval(async () => {
+      try {
+        const data = await getDocs(repoId);
+        if (data.status === "ready") {
+          clearInterval(interval);
+          setDocs(data.docs);
+          setStatus("ready");
+        } else if (data.status.startsWith("error")) {
+          clearInterval(interval);
+          setStatus("error");
+        }
+      } catch { clearInterval(interval); setStatus("error"); }
+    }, 4000);
+  }
 
   const methodColor = {
     GET: "bg-green-500/20 text-green-400", POST: "bg-blue-500/20 text-blue-400",
@@ -183,7 +181,23 @@ function DocsSection({ repoId }) {
     PATCH: "bg-purple-500/20 text-purple-400",
   };
 
-  if (status === "loading" || status === "idle") {
+  if (status === "idle") {
+    return (
+      <Card title="Auto-Generated Documentation">
+        <p className="font-mono text-xs text-muted mb-3">
+          Generate function summaries and an API endpoint explorer for this repo.
+        </p>
+        <button
+          onClick={handleGenerate}
+          className="font-mono text-xs px-4 py-2 rounded-lg bg-cyan/20 border border-cyan/30 text-cyan hover:bg-cyan/30 transition-colors"
+        >
+          Generate documentation
+        </button>
+      </Card>
+    );
+  }
+
+  if (status === "loading") {
     return (
       <Card title="Auto-Generated Documentation">
         <div className="flex items-center gap-3">
@@ -193,10 +207,17 @@ function DocsSection({ repoId }) {
       </Card>
     );
   }
+
   if (status === "error") {
     return (
       <Card title="Auto-Generated Documentation">
-        <p className="font-mono text-xs text-red-400">Docs generation failed. Refresh to retry.</p>
+        <p className="font-mono text-xs text-red-400 mb-3">Docs generation failed.</p>
+        <button
+          onClick={handleGenerate}
+          className="font-mono text-xs px-4 py-2 rounded-lg bg-cyan/20 border border-cyan/30 text-cyan hover:bg-cyan/30 transition-colors"
+        >
+          Try again
+        </button>
       </Card>
     );
   }
