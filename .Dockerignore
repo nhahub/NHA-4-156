@@ -1,0 +1,26 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# node
+frontend/node_modules/
+frontend/dist/
+
+# data (never bake data into the image)
+data/
+chroma_db/
+repo_illustrator.db
+
+# env / secrets
+.env
+.env.*
+
+# git
+.git/
+.gitignore
+
+# misc
+*.log
+.DS_Store

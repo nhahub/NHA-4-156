@@ -1,0 +1,16 @@
+services:
+  repo-illustrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # persist data across container restarts — without this,
+      # every rebuild wipes the SQLite db and all vector embeddings
+      - ./data:/app/data
+      - ./chroma_db:/app/chroma_db
+      - ./repo_illustrator.db:/app/repo_illustrator.db
+    restart: unless-stopped
