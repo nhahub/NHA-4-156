@@ -170,6 +170,12 @@ def fetch_contributors(repo_url: str) -> list:
 async def build_repo_insights(repo_id: str, repo_url: str, provider: str = "anthropic", model_name: str = None) -> dict:
     repo_path = Path("data/processed") / repo_id
 
+    if not repo_path.exists() or not any(repo_path.iterdir()):
+        raise RuntimeError(
+            f"Repository files not found on disk for '{repo_id}'. "
+            "Ingestion may have failed silently (e.g. private repo without access) — re-ingest and check the status."
+        )
+
     llm = llm_provider(provider=provider, model_name=model_name, is_function_calling_model=False)
     tools = make_file_tools(repo_path)
 
