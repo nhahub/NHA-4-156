@@ -126,13 +126,13 @@ def _enrich_with_stats(owner: str, repo: str, headers: dict, contributors: list)
             return
 
 #returns list of contributors with their stats
-def fetch_contributors(repo_url: str) -> list:
+def fetch_contributors(repo_url: str, github_token: str = None) -> list:
     owner_repo = _parse_github_owner_repo(repo_url)
     if owner_repo is None:
         return []
 
     owner, repo = owner_repo
-    token = os.getenv("GITHUB_TOKEN")
+    token = github_token or os.getenv("GITHUB_TOKEN")
     headers = {"Accept": "application/vnd.github+json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
@@ -167,7 +167,7 @@ def fetch_contributors(repo_url: str) -> list:
         return []
 
 
-async def build_repo_insights(repo_id: str, repo_url: str, provider: str = "anthropic", model_name: str = None) -> dict:
+async def build_repo_insights(repo_id: str, repo_url: str, provider: str = "anthropic", model_name: str = None, github_token: str = None) -> dict:
     repo_path = Path("data/processed") / repo_id
 
     if not repo_path.exists() or not any(repo_path.iterdir()):
@@ -204,14 +204,14 @@ async def build_repo_insights(repo_id: str, repo_url: str, provider: str = "anth
 
     summary = str(parsed.get("summary", "")).strip()
 
-    contributors = fetch_contributors(repo_url)
+    contributors = fetch_contributors(repo_url, github_token=github_token)
 
     # static analysis + github metrics + health score
     owner_repo = _parse_github_owner_repo(repo_url)
     analysis = {}
     if owner_repo:
         from insights.analyzer import analyze_repo
-        analysis = analyze_repo(repo_id, owner_repo[0], owner_repo[1], len(contributors))
+        analysis = analyze_repo(repo_id, owner_repo[0], owner_repo[1], len(contributors), github_token=github_token)
 
     return {
         "summary":            summary,

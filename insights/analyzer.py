@@ -19,19 +19,19 @@ SKIP_DIRS = {
 TEST_MARKERS = ("test_", "_test.", ".test.", ".spec.", "tests/", "test/", "__tests__")
 
 
-def _github_headers():
-    token = os.getenv("GITHUB_TOKEN")
+def _github_headers(github_token: str = None):
+    token = github_token or os.getenv("GITHUB_TOKEN")
     headers = {"Accept": "application/vnd.github+json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
     return headers
 
 
-def fetch_repo_info(owner: str, repo: str) -> dict:
+def fetch_repo_info(owner: str, repo: str, github_token: str = None) -> dict:
     try:
         resp = requests.get(
             f"https://api.github.com/repos/{owner}/{repo}",
-            headers=_github_headers(), timeout=15,
+            headers=_github_headers(github_token), timeout=15,
         )
         if resp.status_code != 200:
             return {}
@@ -46,11 +46,11 @@ def fetch_repo_info(owner: str, repo: str) -> dict:
         return {}
 
 
-def fetch_closed_issues_count(owner: str, repo: str) -> int:
+def fetch_closed_issues_count(owner: str, repo: str, github_token: str = None) -> int:
     try:
         resp = requests.get(
             "https://api.github.com/search/issues",
-            headers=_github_headers(),
+            headers=_github_headers(github_token),
             params={"q": f"repo:{owner}/{repo} type:issue state:closed", "per_page": 1},
             timeout=15,
         )
@@ -204,13 +204,13 @@ def compute_health_score(repo_info: dict, closed_issues: int, contributors_count
     }
 
 
-def analyze_repo(repo_id: str, owner: str, repo: str, contributors_count: int) -> dict:
+def analyze_repo(repo_id: str, owner: str, repo: str, contributors_count: int, github_token: str = None) -> dict:
     processed_path = Path("data/processed") / repo_id
     raw_path = Path("data/raw") / repo_id
 
     files = analyze_files(processed_path)
-    repo_info = fetch_repo_info(owner, repo)
-    closed_issues = fetch_closed_issues_count(owner, repo)
+    repo_info = fetch_repo_info(owner, repo, github_token=github_token)
+    closed_issues = fetch_closed_issues_count(owner, repo, github_token=github_token)
     health = compute_health_score(repo_info, closed_issues, contributors_count, files)
 
     code_files = files["code_files"] or 1

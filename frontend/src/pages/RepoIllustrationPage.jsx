@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { startCharts, getCharts, startDocs, getDocs } from "../lib/api";
+import { startCharts, getCharts, startDocs, getDocs, ApiAuthError } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import Navbar from "../components/Navbar";
 import Starfield from "../components/Starfield";
 import FloatingWords from "../components/FloatingWords";
@@ -398,10 +399,12 @@ function Card({ title, children }) {
 
 export default function RepoIllustrationPage() {
   const { repoId } = useParams();
+  const { user, login } = useAuth();
 
   const [status, setStatus] = useState("idle");
   const [charts, setCharts] = useState(null);
   const [error, setError]   = useState(null);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
     if (!repoId) return;
@@ -410,7 +413,10 @@ export default function RepoIllustrationPage() {
     async function init() {
       setStatus("loading");
       try { await startCharts(repoId); }
-      catch (e) { setError(e.message); setStatus("error"); return; }
+      catch (e) {
+        if (e instanceof ApiAuthError) { setAccessDenied(true); setError(e.message); setStatus("error"); return; }
+        setError(e.message); setStatus("error"); return;
+      }
 
       interval = setInterval(async () => {
         try {
@@ -424,7 +430,10 @@ export default function RepoIllustrationPage() {
             setError(data.status);
             setStatus("error");
           }
-        } catch (e) { clearInterval(interval); setError(e.message); setStatus("error"); }
+        } catch (e) {
+          if (e instanceof ApiAuthError) { setAccessDenied(true); }
+          clearInterval(interval); setError(e.message); setStatus("error");
+        }
       }, 3000);
     }
 
@@ -448,9 +457,28 @@ export default function RepoIllustrationPage() {
     return (
       <div className="relative min-h-screen flex flex-col items-center justify-center gap-4">
         <Starfield /><FloatingWords /><Navbar />
-        <div className="relative z-10 text-center space-y-2">
-          <p className="font-mono text-sm text-red-400">{error}</p>
-          <button onClick={() => window.location.reload()} className="font-mono text-xs text-cyan hover:underline">try again</button>
+        <div className="relative z-10 text-center space-y-3 max-w-md px-4">
+          {accessDenied ? (
+            <>
+              <p className="font-display text-lg text-star">Access denied</p>
+              <p className="font-mono text-sm text-muted">
+                {error || "You don't have access to this repository."}
+              </p>
+              {!user && (
+                <button
+                  onClick={login}
+                  className="font-body text-sm px-4 py-2 rounded-full border border-cyan/40 bg-cyan/10 text-cyan hover:bg-cyan/20 transition-colors mt-2"
+                >
+                  Sign in with GitHub
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="font-mono text-sm text-red-400">{error}</p>
+              <button onClick={() => window.location.reload()} className="font-mono text-xs text-cyan hover:underline">try again</button>
+            </>
+          )}
         </div>
       </div>
     );

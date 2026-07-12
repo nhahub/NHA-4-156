@@ -38,8 +38,8 @@ class IngestionPipeline:
         if stop_event is not None and stop_event.is_set():
             raise IngestionCancelled()
 
-    def run(self, repo_url_or_path: str, repo_id: str, stop_event=None) -> tuple[VectorStoreIndex, bool]:
-        repo_path, was_updated = self.preprocessor.prepare(repo_url_or_path, stop_event=stop_event)
+    def run(self, repo_url_or_path: str, repo_id: str, stop_event=None, github_token: str = None) -> tuple[VectorStoreIndex, bool]:
+        repo_path, was_updated = self.preprocessor.prepare(repo_url_or_path, stop_event=stop_event, github_token=github_token)
 
         # Checkpoint: user could have hit stop while cloning/pulling.
         self._check_stop(stop_event)

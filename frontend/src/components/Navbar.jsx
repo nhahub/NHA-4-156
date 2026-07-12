@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import AuthButton from "./AuthButton";
 
 function Flame({ delay, duration, side = "center", scale = 1 }) {
   const xDrift = side === "left" ? -6 : side === "right" ? 6 : 0;
@@ -130,6 +131,11 @@ export default function Navbar({ communityUrl = "https://code-book-e6e0cdeke2cfg
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-30 flex items-center justify-end px-6 md:px-10 py-5">
+      {/* Auth button pinned to the left edge. Teammate can reposition freely. */}
+      <div className="mr-auto">
+        <AuthButton />
+      </div>
+
       <div className="relative inline-flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0, scaleX: 0.2, scaleY: 0.2 }}

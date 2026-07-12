@@ -6,7 +6,8 @@ import FloatingWords from "./components/FloatingWords";
 import Navbar from "./components/Navbar";
 import SearchBar from "./components/SearchBar";
 import ModeToggle from "./components/ModeToggle";
-import { startIngestion, getRepoStatus, assistRepo, stopIngestion } from "./lib/api";
+import { useAuth } from "./lib/auth";
+import { startIngestion, getRepoStatus, assistRepo, stopIngestion, ApiAuthError } from "./lib/api";
 
 const TAGLINES = {
   illustrate: "Give me a repo URL and I'll map its architecture into a living constellation.",
@@ -14,6 +15,7 @@ const TAGLINES = {
 };
 
 export default function App() {
+  const { user } = useAuth();
   const [mode, setMode] = useState("illustrate");
   const [loading, setLoading] = useState(false);
   const [stopping, setStopping] = useState(false);
@@ -84,7 +86,15 @@ export default function App() {
         setLoading(false);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      if (err instanceof ApiAuthError) {
+        // 401 = private repo, not logged in (or token expired). 403 = no access.
+        setError(err.message);
+        if (err.status === 401 && !user) {
+          setInfo("Hint: this looks like a private repo. Sign in with GitHub to ingest it.");
+        }
+      } else {
+        setError(err instanceof Error ? err.message : "Something went wrong.");
+      }
       setLoading(false);
       setStopping(false);
     }
