@@ -16,8 +16,10 @@ const TAGLINES = {
 export default function App() {
   const [mode, setMode] = useState("illustrate");
   const [loading, setLoading] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+  const [info, setInfo] = useState(null);
   const navigate = useNavigate();
 
   // Track the in-flight ingestion so the Stop button and poller can reach them.
@@ -34,8 +36,10 @@ export default function App() {
 
   const handleSubmit = async (value) => {
     setLoading(true);
+    setStopping(false);
     setError(null);
     setResult(null);
+    setInfo(null);
     cancellingRef.current = false;
     try {
       if (mode === "illustrate") {
@@ -48,23 +52,27 @@ export default function App() {
             if (status === "ready") {
               stopPolling();
               setLoading(false);
+              setStopping(false);
               navigate(`/repo/${repo_id}/illustration`);
             } else if (status === "cancelling") {
               // stop was requested, cleanup is in progress on the backend
+              setStopping(true);
             } else if (status.startsWith("error")) {
               stopPolling();
               setLoading(false);
+              setStopping(false);
               setError(status);
             }
             // otherwise still processing, keep polling
           } catch (err) {
             stopPolling();
             setLoading(false);
+            setStopping(false);
             if (cancellingRef.current) {
               // Backend deletes the repo record once cancellation cleanup
               // finishes, so a 404 here means the stop succeeded.
               setError(null);
-              setResult("Ingestion stopped. The cloned repo and any partial data were cleaned up.");
+              setInfo("Ingestion stopped. The cloned repo and any partial data were cleaned up.");
             } else {
               setError(err instanceof Error ? err.message : "Status check failed.");
             }
@@ -78,6 +86,7 @@ export default function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setLoading(false);
+      setStopping(false);
     }
   };
 
@@ -85,12 +94,14 @@ export default function App() {
     const repoId = repoIdRef.current;
     if (!repoId) return;
     cancellingRef.current = true;
+    setStopping(true);
     try {
       await stopIngestion(repoId);
       // Keep polling (it's still running) so we pick up "cancelling" ->
       // the eventual 404 that confirms cleanup finished.
     } catch (err) {
       cancellingRef.current = false;
+      setStopping(false);
       setError(err instanceof Error ? err.message : "Failed to stop ingestion.");
     }
   };
@@ -127,10 +138,19 @@ export default function App() {
         </div>
 
         <ModeToggle mode={mode} onChange={setMode} />
-        <SearchBar mode={mode} onSubmit={handleSubmit} onStop={handleStop} loading={loading} />
+        <SearchBar
+          mode={mode}
+          onSubmit={handleSubmit}
+          onStop={handleStop}
+          loading={loading}
+          stopping={stopping}
+        />
 
         {error && (
           <p className="font-mono text-sm text-red-400 max-w-xl">{error}</p>
+        )}
+        {info && (
+          <p className="font-mono text-xs text-cyan/80 max-w-xl">{info}</p>
         )}
         {result && (
           <pre className="font-mono text-xs text-left text-star/80 bg-deep/70 border border-nebula rounded-xl p-4 max-w-xl max-h-64 overflow-auto whitespace-pre-wrap">
