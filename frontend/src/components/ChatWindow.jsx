@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { streamChatMessage, getChatHistory, deleteChatSession } from "../lib/api";
+import { streamChatMessage, getChatHistory, deleteChatSession, ApiAuthError } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { getSessionId, setSessionId, clearSessionId } from "../lib/session";
 
 const SEEN_KEY = "repo-illustrator-chat-intro-seen";
@@ -95,6 +96,7 @@ function ThinkingToggle({ thinking, expanded, onToggle, live }) {
 }
 
 export default function ChatWindow({ repoId }) {
+  const { user, login } = useAuth();
   const [open, setOpen] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [sessionId, setSessionIdState] = useState(() => getSessionId(repoId));
@@ -150,7 +152,7 @@ export default function ChatWindow({ repoId }) {
   }
 
   useEffect(() => {
-    if (!repoId) return;
+    if (!repoId || !user) return;
     let cancelled = false;
 
     async function loadHistory() {
@@ -169,7 +171,7 @@ export default function ChatWindow({ repoId }) {
     }
     loadHistory();
     return () => { cancelled = true; };
-  }, [repoId, sessionId]);
+  }, [repoId, sessionId, user]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -251,9 +253,15 @@ export default function ChatWindow({ repoId }) {
         }
       });
     } catch (e) {
-      setError(e.message);
-      setMessages(prev => prev.slice(0, -2));
-      setInput(text);
+      if (e instanceof ApiAuthError) {
+        setError(e.message);
+        setMessages(prev => prev.slice(0, -1));
+        setInput(text);
+      } else {
+        setError(e.message);
+        setMessages(prev => prev.slice(0, -2));
+        setInput(text);
+      }
       setSending(false);
     }
   }
@@ -320,7 +328,11 @@ export default function ChatWindow({ repoId }) {
           </div>
 
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-            {loadingHistory ? (
+            {!user ? (
+              <p className="font-mono text-xs text-muted">
+                Sign in to chat about this repo.
+              </p>
+            ) : loadingHistory ? (
               <p className="font-mono text-xs text-muted">loading history...</p>
             ) : messages.length === 0 ? (
               <p className="font-mono text-xs text-muted">Ask anything about this repo.</p>
@@ -391,21 +403,37 @@ export default function ChatWindow({ repoId }) {
           </div>
 
           <div className="p-3 border-t border-white/10 flex gap-2">
-            <textarea
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask about this repo..."
-              rows={1}
-              className="flex-1 resize-none font-mono text-sm bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-star placeholder:text-muted focus:outline-none focus:border-cyan/50"
-            />
-            <button
-              onClick={handleSend}
-              disabled={sending || !input.trim()}
-              className="font-mono text-xs px-3 rounded-lg bg-cyan/20 border border-cyan/30 text-cyan hover:bg-cyan/30 transition-colors disabled:opacity-40"
-            >
-              send
-            </button>
+            {user ? (
+              <>
+                <textarea
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask about this repo..."
+                  rows={1}
+                  className="flex-1 resize-none font-mono text-sm bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-star placeholder:text-muted focus:outline-none focus:border-cyan/50"
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={sending || !input.trim()}
+                  className="font-mono text-xs px-3 rounded-lg bg-cyan/20 border border-cyan/30 text-cyan hover:bg-cyan/30 transition-colors disabled:opacity-40"
+                >
+                  send
+                </button>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-2 w-full py-2">
+                <p className="font-mono text-xs text-muted text-center">
+                  Sign in with GitHub to chat with this repo.
+                </p>
+                <button
+                  onClick={login}
+                  className="font-body text-sm px-4 py-1.5 rounded-full border border-cyan/40 bg-cyan/10 text-cyan hover:bg-cyan/20 transition-colors"
+                >
+                  Sign in
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

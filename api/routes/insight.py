@@ -1,10 +1,11 @@
 import json
 from typing import Optional, List
 
-from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Request, HTTPException, Depends
 from pydantic import BaseModel
 
 from api.database import get_repo_status, get_repo_insight, save_insight_status
+from api.auth import get_current_user, require_repo_access, User
 from rag.insight_generator import generate_insight
 
 router = APIRouter()
@@ -55,6 +56,7 @@ async def start_insight(
     repo_id: str,
     background_tasks: BackgroundTasks,
     payload: InsightRequest = InsightRequest(),
+    user: User | None = Depends(get_current_user),
 ):
     if payload.provider and payload.provider not in VALID_PROVIDERS:
         raise HTTPException(
@@ -65,6 +67,7 @@ async def start_insight(
     repo_info = get_repo_status(repo_id)
     if not repo_info:
         raise HTTPException(status_code=404, detail="Repo metadata not found. Ingest the repo first.")
+    await require_repo_access(repo_id, user)
     if repo_info.get("status") != "ready":
         raise HTTPException(
             status_code=409,
@@ -92,7 +95,8 @@ async def start_insight(
 
 
 @router.get("/{repo_id}/insight", response_model=InsightStatusResponse)
-async def get_insight(repo_id: str):
+async def get_insight(repo_id: str, user: User | None = Depends(get_current_user)):
+    await require_repo_access(repo_id, user)
     cached = get_repo_insight(repo_id)
     if not cached:
         raise HTTPException(
