@@ -33,10 +33,13 @@ export default function ModeToggle({ mode, onChange }) {
           <button
             key={opt.key}
             onClick={() => onChange(opt.key)}
-            className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-body transition-all duration-300
+            style={{ WebkitTapHighlightColor: "transparent" }}
+            className={`flex items-center gap-2 px-9 py-2 rounded-full text-sm font-body cursor-pointer
+              outline-none border-none ring-0 focus:ring-0 focus:outline-none focus-visible:outline-none focus-visible:ring-0
+              transition-all duration-200 active:scale-[0.96]
               ${active
                 ? "bg-cyan text-void font-medium shadow-[0_0_18px_rgba(79,216,255,0.4)]"
-                : "text-muted hover:text-star"}`}
+                : "text-muted hover:text-star hover:bg-white/5 hover:scale-[1.04]"}`}
           >
             {opt.icon}
             {opt.label}
