@@ -8,6 +8,18 @@ from urllib.parse import urlparse
 
 from ingestion.exceptions import IngestionCancelled
 
+
+def redact_credentials(text: str) -> str:
+    """Strip `user:token@` credentials out of any text headed for a log, an
+    exception, or the DB. git usually redacts them itself, but that isn't
+    guaranteed across versions, and this text lands in the repo status field —
+    which the API serves straight to the browser. Never let a token through.
+    """
+    if not text:
+        return ""
+    return re.sub(r"(https?://)[^/\s@]+@", r"\1", str(text))
+
+
 SKIP_DIRS = {"node_modules", ".git", "__pycache__", ".venv", "venv", "dist", "build", ".vscode", ".idea", "target", "out", "bin", "obj"}
 SUPPORTED_EXTENSIONS = {
     # code
@@ -43,12 +55,12 @@ class RepositoryPreprocessor:
         self.output_folder = Path(output_folder)
         self.output_folder.mkdir(parents=True, exist_ok=True)
 
-    def prepare(self, repo_url_or_path: str, stop_event=None) -> tuple[str, bool]:
+    def prepare(self, repo_url_or_path: str, stop_event=None, github_token: str = None) -> tuple[str, bool]:
         repo_path = Path(repo_url_or_path)
         if repo_path.exists():
             return self._prepare_local(repo_path, stop_event=stop_event)
         else:
-            return self._prepare_remote(repo_url_or_path, stop_event=stop_event)
+            return self._prepare_remote(repo_url_or_path, stop_event=stop_event, github_token=github_token)
 
     @staticmethod
     def generate_repo_id(url: str) -> str:
@@ -59,12 +71,24 @@ class RepositoryPreprocessor:
             return f"{parts[0]}__{repo}".lower().replace('-', '_')
         return re.sub(r'[^a-zA-Z0-9]', '_', path.replace('.git', '')).lower()
 
-    def _authenticated_url(self, url: str) -> str:
-        """Inject GITHUB_TOKEN into the clone URL so private repos work too."""
+    def _authenticated_url(self, url: str, github_token: str = None) -> str:
+        """Inject a GitHub token into the clone URL so private repos work.
+        Caller passes the user's OAuth token (for private repos) or the server
+        GITHUB_TOKEN (for public rate-limit headroom). Falls back to the env
+        var only if nothing is passed — preserves the old behavior.
+
+        The token goes in as the *password* (`x-access-token:<token>@`), not as
+        a bare `<token>@`. With only a username, git has no password to send, so
+        it blocks on a credential prompt the moment GitHub challenges it — which
+        is exactly what private repos do — and dies headless. Supplying both
+        halves also means git redacts the credentials from its own error output.
+        """
         import os
-        token = os.getenv("GITHUB_TOKEN")
+        token = github_token or os.getenv("GITHUB_TOKEN")
         if token and url.startswith("https://github.com/"):
-            return url.replace("https://github.com/", f"https://{token}@github.com/")
+            return url.replace(
+                "https://github.com/", f"https://x-access-token:{token}@github.com/"
+            )
         return url
 
     def _run_git_cancelable(self, cmd: list[str], stop_event=None, timeout: float | None = None, cwd=None) -> subprocess.CompletedProcess:
@@ -102,13 +126,13 @@ class RepositoryPreprocessor:
 
         return subprocess.CompletedProcess(cmd, process.returncode, stdout, stderr)
 
-    def _prepare_remote(self, url: str, stop_event=None) -> tuple[str, bool]:
+    def _prepare_remote(self, url: str, stop_event=None, github_token: str = None) -> tuple[str, bool]:
         repo_name = self.generate_repo_id(url)
         raw_dest = Path("data/raw") / repo_name
         proc_dest = self.output_folder / repo_name
         raw_dest.parent.mkdir(parents=True, exist_ok=True)
 
-        auth_url = self._authenticated_url(url)
+        auth_url = self._authenticated_url(url, github_token=github_token)
 
         if stop_event is not None and stop_event.is_set():
             raise IngestionCancelled()
@@ -123,14 +147,22 @@ class RepositoryPreprocessor:
                 )
             except subprocess.CalledProcessError as e:
                 stderr = (e.stderr or "").lower()
-                if "repository not found" in stderr or "could not read username" in stderr or "authentication failed" in stderr:
+                auth_failure = (
+                    "repository not found" in stderr
+                    or "could not read username" in stderr
+                    or "could not read password" in stderr
+                    or "authentication failed" in stderr
+                    or "invalid username or token" in stderr
+                )
+                if auth_failure:
                     raise RuntimeError(
                         "This repository is private or does not exist. "
-                        "If it's a private repo you have access to, make sure GITHUB_TOKEN "
-                        "in your .env has 'repo' scope and belongs to an account that's a "
-                        "collaborator on it."
+                        "If it's a private repo, sign in with GitHub using an account "
+                        "that has access to it."
                     )
-                raise RuntimeError(f"Failed to clone '{url}': {e.stderr or 'unknown git error'}")
+                raise RuntimeError(
+                    f"Failed to clone '{url}': {redact_credentials(e.stderr) or 'unknown git error'}"
+                )
             self._sync_processed(raw_dest, proc_dest, stop_event=stop_event)
             return str(proc_dest), True
 

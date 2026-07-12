@@ -1,10 +1,11 @@
 import json
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
 from pydantic import BaseModel
 
 from api.database import get_repo_status, get_repo_docs, save_docs_status
+from api.auth import get_current_user, require_repo_access, User
 from insights.document_generator import generate_docs
 
 router = APIRouter()
@@ -33,13 +34,14 @@ async def _run_docs_job(repo_id: str, provider: str, model_name: str):
 
 
 @router.post("/{repo_id}/docs")
-async def start_docs(repo_id: str, background_tasks: BackgroundTasks, payload: DocsRequest = DocsRequest()):
+async def start_docs(repo_id: str, background_tasks: BackgroundTasks, payload: DocsRequest = DocsRequest(), user: User | None = Depends(get_current_user)):
     if payload.provider and payload.provider not in VALID_PROVIDERS:
         raise HTTPException(status_code=400, detail=f"Unsupported provider '{payload.provider}'.")
 
     repo_info = get_repo_status(repo_id)
     if not repo_info:
         raise HTTPException(status_code=404, detail="Repo not found. Ingest it first.")
+    await require_repo_access(repo_id, user)
     if repo_info.get("status") != "ready":
         raise HTTPException(status_code=409, detail=f"Repo is not ready yet (status: {repo_info.get('status')}).")
 
@@ -62,7 +64,8 @@ async def start_docs(repo_id: str, background_tasks: BackgroundTasks, payload: D
 
 
 @router.get("/{repo_id}/docs", response_model=DocsStatusResponse)
-async def get_docs(repo_id: str):
+async def get_docs(repo_id: str, user: User | None = Depends(get_current_user)):
+    await require_repo_access(repo_id, user)
     cached = get_repo_docs(repo_id)
     if not cached:
         raise HTTPException(status_code=404, detail="No docs found. Start one with POST /{repo_id}/docs.")
