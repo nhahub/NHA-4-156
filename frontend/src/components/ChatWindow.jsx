@@ -79,7 +79,7 @@ function ThinkingToggle({ thinking, expanded, onToggle, live }) {
     <div className="max-w-[85%]">
       <button
         onClick={onToggle}
-        className="flex items-center gap-1 font-mono text-[11px] text-muted hover:text-cyan transition-colors px-1 py-0.5"
+        className="flex items-center gap-1 font-mono text-[11px] text-muted hover:text-cyan transition-colors px-3 py-1"
       >
         <ChevronIcon className="w-3 h-3" open={expanded} />
         <span className={live ? "animate-pulse" : ""}>
