@@ -137,7 +137,7 @@ export default function App() {
                        bg-gradient-to-r from-[#eef1ff] via-[#4fd8ff] to-[#a78bfa]
                        bg-clip-text text-transparent"
           >
-            Sha3boly el Repo
+            Astrolabe
           </motion.h1>
           <p
             className="font-body text-muted text-sm md:text-base max-w-md mx-auto"
