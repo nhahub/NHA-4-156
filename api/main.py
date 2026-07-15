@@ -8,7 +8,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from llama_index.core import Settings
-from embeddings.embedder import RepoEmbedder
+from embeddings.provider import get_embedder
 from api.routes import auth, chat, ingestion, insight, charts, docs
 from api.database import init_db
 
@@ -20,7 +20,7 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     Settings.chunk_size = 512
     Settings.chunk_overlap = 50
-    Settings.embed_model = RepoEmbedder().get_embed_model()
+    Settings.embed_model = get_embedder(provider=os.getenv("EMBEDDING_PROVIDER", "local"))
 
     init_db()
 

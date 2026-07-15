@@ -2,7 +2,7 @@ import asyncio
 import threading
 from fastapi import APIRouter, Request, HTTPException, Depends
 from pathlib import Path
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, field_validator
 import re
 from urllib.parse import urlparse
 from ingestion import pipeline
@@ -16,6 +16,19 @@ router = APIRouter()
 
 class IndexRequest(BaseModel):
     repo_url: HttpUrl
+
+    @field_validator("repo_url", mode="before")
+    @classmethod
+    def _ensure_scheme(cls, v):
+        # Accept pasted links without a scheme (e.g. "github.com/owner/repo").
+        # HttpUrl rejects those, which surfaced as a confusing 422; prepend
+        # https:// before validation. Also fixes generate_repo_id(), whose
+        # urlparse() needs the scheme to split netloc from path.
+        if isinstance(v, str):
+            v = v.strip()
+            if v and not re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", v):
+                v = "https://" + v
+        return v
 
 def generate_repo_id(url: str) -> str:
     path = urlparse(url).path.strip('/')

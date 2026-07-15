@@ -2,7 +2,7 @@ import gc
 import os
 import time
 
-from embeddings.embedder import RepoEmbedder
+from embeddings.provider import get_embedder
 from ingestion.preprocessor import RepositoryPreprocessor
 from ingestion.loader import RepositoryLoader
 from ingestion.chunker import RepositoryChunker
@@ -12,7 +12,7 @@ from vectorstore.chroma_store import RepoVectorStore
 from pathlib import Path
 
 
-EMBED_BATCH_SIZE = 50
+EMBED_BATCH_SIZE = 256
 
 
 class IngestionPipeline:

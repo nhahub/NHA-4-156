@@ -2,7 +2,7 @@
 
 An AI-powered codebase explorer that ingests a GitHub repository — public or private — and provides semantic search, interactive chat, automated insights, visual analytics, and auto-generated documentation, all through a space-themed React frontend.
 
-> Internally the project is still named `repo-illustrator` (DB filename, Docker service, Modal app). Only the user-facing name changed.
+> Internally the project is still named `repo-illustrator` (DB filename, Docker service). Only the user-facing name changed.
 
 ## Features
 

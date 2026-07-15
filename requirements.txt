@@ -33,8 +33,6 @@ tree-sitter-ruby
 
 requests
 
-modal
-
 cryptography
 httpx
 itsdangerous
